@@ -114,7 +114,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	var txs []*ethtypes.Transaction
 	retryCount := 0
 
-	for i := 0; i < t.config.TxCount; i++ {
+	for i := 0; i < t.config.QPS; i++ {
 		tx, err := t.generateTransaction(ctx)
 		if err != nil {
 			t.logger.Errorf("Failed to create transaction: %v", err)
@@ -161,7 +161,7 @@ func (t *Task) Execute(ctx context.Context) error {
 		}
 	}
 
-	avgLatency := totalLatency / time.Duration(t.config.TxCount)
+	avgLatency := totalLatency / time.Duration(t.config.QPS)
 	t.logger.Infof("Average transaction latency: %dmus", avgLatency.Microseconds())
 
 	// send to other clients, for speeding up tx mining
@@ -175,11 +175,11 @@ func (t *Task) Execute(ctx context.Context) error {
 		}
 	}
 
-	if t.config.FailOnHighLatency && avgLatency.Microseconds() > t.config.ExpectedLatency {
-		t.logger.Errorf("Transaction latency too high: %dmus (expected <= %dmus)", avgLatency.Microseconds(), t.config.ExpectedLatency)
+	if t.config.FailOnHighLatency && avgLatency.Microseconds() > t.config.HighLatency {
+		t.logger.Errorf("Transaction latency too high: %dmus (expected <= %dmus)", avgLatency.Microseconds(), t.config.HighLatency)
 		t.ctx.SetResult(types.TaskResultFailure)
 	} else {
-		t.ctx.Outputs.SetVar("tx_count", t.config.TxCount)
+		t.ctx.Outputs.SetVar("tx_count", t.config.QPS)
 		t.ctx.Outputs.SetVar("avg_latency_mus", avgLatency.Microseconds())
 		t.ctx.Outputs.SetVar("detailed_latencies", latencies)
 		t.ctx.SetResult(types.TaskResultSuccess)
