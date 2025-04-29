@@ -35,7 +35,6 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 ```yaml
 - name: tx_pool_latency_analysis
   config:
-    nonce: 0
     qps: 15000
     measureInterval: 1000
     highLatency: 5000

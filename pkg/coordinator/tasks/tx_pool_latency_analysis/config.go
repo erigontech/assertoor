@@ -3,7 +3,7 @@ package txpoollatencyanalysis
 type Config struct {
 	PrivateKey string `yaml:"privateKey" json:"privateKey"`
 
-	QPS									 int   `yaml:"qps" json:"qps"`
+	TxCount							 int   `yaml:"txCount" json:"txCount"`
 	MeasureInterval      int   `yaml:"measureInterval" json:"measureInterval"`
 	HighLatency		       int64 `yaml:"highLatency" json:"highLatency"`
 	FailOnHighLatency    bool  `yaml:"failOnHighLatency" json:"failOnHighLatency"`
@@ -12,7 +12,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		QPS: 									1000,
+		TxCount: 							1000,
 		MeasureInterval:      100,
 		HighLatency:					5000, // in microseconds
 		FailOnHighLatency:    true,
