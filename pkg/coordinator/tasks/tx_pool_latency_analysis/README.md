@@ -9,7 +9,7 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 - **`privateKey`**:
   The private key of the account to use for sending transactions.
 
-- **`qps`**:
+- **`txCount`**:
   The total number of transactions to send.
 
 - **`measureInterval`**:
@@ -35,7 +35,7 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 ```yaml
 - name: tx_pool_latency_analysis
   config:
-    qps: 15000
+    txCount: 15000
     measureInterval: 1000
     highLatency: 5000
     failOnHighLatency: false
