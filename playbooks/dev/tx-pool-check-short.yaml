@@ -17,7 +17,7 @@ tasks:
   config:
     waitTime: 5
 - name: tx_pool_latency_analysis
-  title: "Check transaction pool latency with 1.000 transactions"
+  title: "Check transaction pool latency with 20.000 transactions"
   config:
     qps: 20000
     measureInterval: 2000
