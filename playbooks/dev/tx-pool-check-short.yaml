@@ -4,8 +4,6 @@ timeout: 30m
 disable: false
 config:
   walletPrivkey: ""
-  # validatorPairNames: []
-  # minBlobCount: 3
 tasks:
 - name: tx_pool_throughput_analysis
   title: "Check transaction pool throughput with 20.000 transactions"
