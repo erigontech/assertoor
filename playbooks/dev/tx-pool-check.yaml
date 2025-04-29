@@ -1,6 +1,6 @@
 id: tx-pool-check
 name: "Check transaction pool"
-timeout: 2h
+timeout: 1h
 disable: false
 config:
   walletPrivkey: ""
