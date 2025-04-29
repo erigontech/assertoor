@@ -3,6 +3,7 @@ package txpoolcheck
 import (
 	"context"
 	crand "crypto/rand"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -193,6 +194,12 @@ func (t *Task) Execute(ctx context.Context) error {
 			client.GetRPCClient().SendTransaction(ctx, tx)
 		}
 	}
+
+	outputs := map[string]interface{}{
+		"total_time_mus": totalTime.Microseconds(),
+	}
+	outputsJSON, _ := json.Marshal(outputs)
+	t.logger.Infof("outputs_json: %s", string(outputsJSON))
 
 	t.ctx.Outputs.SetVar("total_time_mus", totalTime.Milliseconds())
 	t.ctx.SetResult(types.TaskResultSuccess)
