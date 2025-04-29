@@ -10,8 +10,7 @@ tasks:
 - name: tx_pool_throughput_analysis
   title: "Check transaction pool throughput with 20.000 transactions"
   config:
-    nonce: 0
-    qps: 20000
+    txCount: 20000
     measureInterval: 2000
   configVars:
     privateKey: "walletPrivkey"
