@@ -198,6 +198,7 @@ func (t *Task) Execute(ctx context.Context) error {
 			"tx_count":           t.config.TxCount,
 			"avg_latency_mus":    avgLatency.Microseconds(),
 			"tx_pool_latency_hdr_plot": plot,
+			"latencies": latenciesMs,
 		}
 
 		outputsJSON, _ := json.Marshal(outputs)
