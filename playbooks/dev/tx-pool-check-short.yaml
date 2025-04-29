@@ -8,7 +8,7 @@ tasks:
 - name: tx_pool_throughput_analysis
   title: "Check transaction pool throughput with 20.000 transactions"
   config:
-    txCount: 20000
+    qps: 20000
     measureInterval: 2000
   configVars:
     privateKey: "walletPrivkey"
@@ -19,7 +19,7 @@ tasks:
 - name: tx_pool_latency_analysis
   title: "Check transaction pool latency with 20.000 transactions"
   config:
-    qps: 20000
+    txCount: 20000
     measureInterval: 2000
     highLatency: 5000
     failOnHighLatency: true

@@ -10,8 +10,8 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		QPS:            		1000,
-		MeasureInterval:    100,
+		QPS:            			1000,
+		MeasureInterval:    	100,
 		SecondsBeforeRunning: 0,
 	}
 }
