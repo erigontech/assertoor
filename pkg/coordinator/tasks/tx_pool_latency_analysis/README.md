@@ -9,17 +9,17 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 - **`privateKey`**:
   The private key of the account to use for sending transactions.
 
-- **`txCount`**:
+- **`qps`**:
   The total number of transactions to send.
 
 - **`measureInterval`**:
   The interval at which the script logs progress (e.g., every 100 transactions).
 
-- **`expectedLatency`**:
+- **`highLatency`**:
   The expected average transaction latency in milliseconds.
 
 - **`failOnHighLatency`**:
-  Whether the task should fail if the measured latency exceeds `expectedLatency`.
+  Whether the task should fail if the measured latency exceeds `highLatency`.
 
 
 ### Outputs
@@ -36,9 +36,9 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 - name: tx_pool_latency_analysis
   config:
     nonce: 0
-    txCount: 15000
+    qps: 15000
     measureInterval: 1000
-    expectedLatency: 5000
+    highLatency: 5000
     failOnHighLatency: false
   configVars:
     privateKey: "tx_pool_latency_analysis"
