@@ -11,7 +11,7 @@ tasks:
   title: "Check transaction pool throughput with 1.000 transactions"
   config:
     nonce: 0
-    txCount: 1000
+    qps: 1000
     measureInterval: 100
   configVars:
     privateKey: "walletPrivkey"
@@ -23,9 +23,9 @@ tasks:
   title: "Check transaction pool latency with 1.000 transactions"
   config:
     nonce: 1000
-    txCount: 1000
+    qps: 1000
     measureInterval: 100
-    expectedLatency: 5000
+    highLatency: 5000
     failOnHighLatency: true
   configVars:
     privateKey: "walletPrivkey"
