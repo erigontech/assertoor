@@ -179,6 +179,8 @@ func (t *Task) Execute(ctx context.Context) error {
 		t.logger.Errorf("Transaction latency too high: %dmus (expected <= %dmus)", avgLatency.Microseconds(), t.config.HighLatency)
 		t.ctx.SetResult(types.TaskResultFailure)
 	} else {
+		t.logger.WithField("detailed_latencies", latencies).Info("Transaction latencies in microseconds")
+
 		t.ctx.Outputs.SetVar("tx_count", t.config.TxCount)
 		t.ctx.Outputs.SetVar("avg_latency_mus", avgLatency.Microseconds())
 		t.ctx.Outputs.SetVar("detailed_latencies", latencies)
