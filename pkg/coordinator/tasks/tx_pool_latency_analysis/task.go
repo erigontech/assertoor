@@ -181,13 +181,13 @@ func (t *Task) Execute(ctx context.Context) error {
 		t.logger.Errorf("Transaction latency too high: %dmus (expected <= %dmus)", avgLatency.Microseconds(), t.config.HighLatency)
 		t.ctx.SetResult(types.TaskResultFailure)
 	} else {
-		latenciesJSON := make([]int64, len(latencies))
+		latenciesMs := make([]int64, len(latencies))
 
 		for i, latency := range latencies {
-			latenciesJSON[i] = latency.Microseconds()
+			latenciesMs[i] = latency.Microseconds()
 		}
 
-		plot, err := hdr.HdrPlot(latenciesJSON)
+		plot, err := hdr.HdrPlot(latenciesMs)
 		if err != nil {
 			t.logger.Errorf("Failed to generate HDR plot: %v", err)
 			t.ctx.SetResult(types.TaskResultFailure)
