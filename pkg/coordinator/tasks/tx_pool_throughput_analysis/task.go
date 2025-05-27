@@ -203,6 +203,10 @@ func (t *Task) Execute(ctx context.Context) error {
 				t.ctx.SetResult(types.TaskResultFailure)
 				return nil
 			}
+			// todo: creare una funzione che legge l'hash della tx e capisce se e una di quelle che ho inviato io, inizialmente faccio log per testare
+			for _, tx := range *result.txs {
+				t.logger.Infof("Tx hash: %s", tx.Hash().Hex())
+			}
 			gotTx += len(*result.txs)
 		case <-time.After(180 * time.Second):
 			t.logger.Warnf("Timeout after 180 seconds while reading transaction messages. Re-sending transactions...")
