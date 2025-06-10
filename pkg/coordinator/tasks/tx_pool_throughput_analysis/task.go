@@ -133,11 +133,15 @@ func (t *Task) Execute(ctx context.Context) error {
 	rate := vegeta.Rate{Freq: t.config.QPS, Per: time.Second}
 	pacer := vegeta.ConstantPacer{Freq: rate.Freq, Per: rate.Per}
 
-	// Attack for 1 second duration
-	duration := time.Second
-	results := attacker.Attack(targeter, pacer, duration, "tx_attack")
+	// Attack with vegeta
+	var metrics vegeta.Metrics
+	for res := range attacker.Attack(targeter, pacer, duration, "tx_attack") {
+		metrics.Add(res)
+	}
+	metrics.Close()
+	fmt.Printf("99th percentile: %s\n", metrics.Latencies.P99)
 
-	// Process results
+	// Process results  -- todo
 	done := make(chan bool)
 	go func() {
 		defer close(done)
