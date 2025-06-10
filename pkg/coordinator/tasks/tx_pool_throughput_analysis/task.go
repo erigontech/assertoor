@@ -139,7 +139,7 @@ func (t *Task) Execute(ctx context.Context) error {
 		metrics.Add(res)
 	}
 	metrics.Close()
-	fmt.Printf("99th percentile: %s\n", metrics.Latencies.P99)
+	t.logger.Infof("99th percentile: %s\n", metrics.Latencies.P99)
 
 	// Process results  -- todo
 	done := make(chan bool)
