@@ -86,23 +86,45 @@ func (t *Task) LoadConfig() error {
 	return nil
 }
 
-func (t *Task) ReadP2PMessages(conn *sentry.Conn) string {
+type p2p_tx *ethtypes.Transaction
 
-	txs, err := conn.ReadTransactionMessages()
-	readChan <- struct {
-		txs *eth.TransactionsPacket
-		err error
-	}{txs, err}
+func (t *Task) ReadP2PMessages(conn *sentry.Conn, p2pEvents *chan p2p_tx) (int, error) {
 
+	tx_announces := 0
+	for {
+		txs, err := conn.ReadTransactionMessages()
 
-	select {
-	case result := <-readChan:
-		if result.err != nil {
-			t.logger.Errorf("Failed to read transaction messages: %v", result.err)
+		if err != nil {
+			t.logger.Errorf("Failed to read transaction messages: %v", err)
 			t.ctx.SetResult(types.TaskResultFailure)
-			return nil
+			return tx_announces, err
 		}
-		gotTx += len(*result.txs)
+
+		for _, tx := range *txs {
+			if tx == nil {
+				continue
+			}
+
+			*p2pEvents <- tx
+			tx_announces++
+
+			// Log the transaction hash
+			t.logger.Infof("Received transaction: %s", tx.Hash().Hex())
+		}
+
+		// check if the context is cancelled
+		if t.ctx.IsCancelled() {
+			t.logger.Infof("Task cancelled, stopping p2p message reading")
+			break
+		}
+	}
+
+	t.logger.Errorf("Received p2p events: %i", tx_announces)
+
+	// Close the channel when done
+	close(*p2pEvents)
+
+	return tx_announces, nil
 }
 
 func (t *Task) Execute(ctx context.Context) error {
@@ -162,101 +184,6 @@ func (t *Task) Execute(ctx context.Context) error {
 	metrics.Close()
 	t.logger.Infof("99th percentile: %s\n", metrics.Latencies.P99)
 
-	// Process results  -- todo
-	done := make(chan bool)
-	go func() {
-		defer close(done)
-		for result := range results {
-			if result.Error != "" {
-				t.logger.Errorf("Transaction error: %s", result.Error)
-				t.ctx.SetResult(types.TaskResultFailure)
-				isFailed = true
-				return
-			}
-
-			sentTxCount++
-
-			// Note: We can't easily get the actual tx object from vegeta results
-			// so we'll generate them again for the broadcast to other clients
-		}
-
-		execTime := time.Since(startTime)
-		t.logger.Infof("Time to send %d transactions: %v", sentTxCount, execTime)
-	}()
-
-	// Wait for transaction sending to complete
-	<-done
-
-	if isFailed {
-		return nil
-	}
-
-	lastMeasureTime := time.Now()
-	gotTx := 0
-
-	for gotTx < t.config.QPS {
-		if isFailed {
-			return nil
-		}
-
-		// Add a timeout of 180 seconds for reading transaction messages
-		readChan := make(chan struct {
-			txs *eth.TransactionsPacket
-			err error
-		})
-
-		go func() {
-			txs, err := conn.ReadTransactionMessages()
-			readChan <- struct {
-				txs *eth.TransactionsPacket
-				err error
-			}{txs, err}
-		}()
-
-		select {
-		case result := <-readChan:
-			if result.err != nil {
-				t.logger.Errorf("Failed to read transaction messages: %v", result.err)
-				t.ctx.SetResult(types.TaskResultFailure)
-				return nil
-			}
-			gotTx += len(*result.txs)
-		case <-time.After(180 * time.Second):
-			t.logger.Warnf("Timeout after 180 seconds while reading transaction messages. Re-sending transactions...")
-
-			// Calculate how many transactions we're still missing
-			missingTxCount := t.config.QPS - gotTx
-			if missingTxCount <= 0 {
-				break
-			}
-
-			// Re-send transactions to the original client
-			for i := 0; i < missingTxCount && i < len(txs); i++ {
-				err = client.GetRPCClient().SendTransaction(ctx, txs[i])
-				if err != nil {
-					t.logger.WithError(err).Errorf("Failed to re-send transaction message, error: %v", err)
-					t.ctx.SetResult(types.TaskResultFailure)
-					return nil
-				}
-			}
-
-			t.logger.Infof("Re-sent %d transactions", missingTxCount)
-			continue
-		}
-
-		if gotTx%t.config.MeasureInterval != 0 {
-			continue
-		}
-
-		t.logger.Infof("Got %d transactions", gotTx)
-		t.logger.Infof("Tx/s: (%d txs processed): %.2f / s \n", gotTx, float64(t.config.MeasureInterval)*float64(time.Second)/float64(time.Since(lastMeasureTime)))
-
-		lastMeasureTime = time.Now()
-	}
-
-	totalTime := time.Since(startTime)
-	t.logger.Infof("Total time for %d transactions: %.2fs", sentTxCount, totalTime.Seconds())
-
 	// Generate transactions for broadcasting to other clients
 	for range sentTxCount {
 		tx, err := t.generateTransaction(ctx)
@@ -278,16 +205,17 @@ func (t *Task) Execute(ctx context.Context) error {
 		}
 	}
 
-	outputs := map[string]interface{}{
-		"total_time_mus": totalTime.Microseconds(),
-		"qps":            t.config.QPS,
-	}
-	outputsJSON, _ := json.Marshal(outputs)
-	t.logger.Infof("outputs_json: %s", string(outputsJSON))
+	/*
+		outputs := map[string]interface{}{
+			"total_time_mus": totalTime.Microseconds(),
+			"qps":            t.config.QPS,
+		}
+		outputsJSON, _ := json.Marshal(outputs)
+		t.logger.Infof("outputs_json: %s", string(outputsJSON))
 
-	t.ctx.Outputs.SetVar("total_time_mus", totalTime.Milliseconds())
-	t.ctx.SetResult(types.TaskResultSuccess)
-
+		t.ctx.Outputs.SetVar("total_time_mus", totalTime.Milliseconds())
+		t.ctx.SetResult(types.TaskResultSuccess)
+	*/
 	return nil
 }
 
