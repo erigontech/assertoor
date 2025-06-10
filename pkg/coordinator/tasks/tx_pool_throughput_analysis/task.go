@@ -86,6 +86,25 @@ func (t *Task) LoadConfig() error {
 	return nil
 }
 
+func (t *Task) ReadP2PMessages(conn *sentry.Conn) string {
+
+	txs, err := conn.ReadTransactionMessages()
+	readChan <- struct {
+		txs *eth.TransactionsPacket
+		err error
+	}{txs, err}
+
+
+	select {
+	case result := <-readChan:
+		if result.err != nil {
+			t.logger.Errorf("Failed to read transaction messages: %v", result.err)
+			t.ctx.SetResult(types.TaskResultFailure)
+			return nil
+		}
+		gotTx += len(*result.txs)
+}
+
 func (t *Task) Execute(ctx context.Context) error {
 	err := t.wallet.AwaitReady(ctx)
 	if err != nil {
@@ -131,6 +150,8 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	// Create pacer for desired QPS over 1 second
 	rate := vegeta.Rate{Freq: t.config.QPS, Per: time.Second}
+	duration := time.Duration(t.config.QPS) * time.Second
+
 	pacer := vegeta.ConstantPacer{Freq: rate.Freq, Per: rate.Per}
 
 	// Attack with vegeta
