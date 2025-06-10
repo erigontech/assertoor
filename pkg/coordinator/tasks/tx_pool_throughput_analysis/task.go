@@ -142,7 +142,7 @@ func (t *Task) Execute(ctx context.Context) error {
 				continue
 			}
 
-			client.GetRPCClient().SendTransaction(ctx, tx)
+			otherClient.GetRPCClient().SendTransaction(ctx, tx)
 		}
 	}
 
