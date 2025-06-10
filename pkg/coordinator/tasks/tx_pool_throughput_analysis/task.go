@@ -21,6 +21,7 @@ import (
 	"github.com/noku-team/assertoor/pkg/coordinator/utils/sentry"
 	"github.com/noku-team/assertoor/pkg/coordinator/wallet"
 	"github.com/sirupsen/logrus"
+	vegeta "github.com/tsenart/vegeta/v12/lib"
 )
 
 var (
@@ -111,71 +112,62 @@ func (t *Task) Execute(ctx context.Context) error {
 	defer conn.Close()
 
 	var txs []*ethtypes.Transaction
+	var sentTxCount int
+	var isFailed bool
 
 	startTime := time.Now()
-	isFailed := false
-	sentTxCount := 0
 
+	// Create vegeta attacker
+	attacker := NewTxAttacker(t, client, ctx)
+
+	// Create a dummy targeter (required by vegeta interface but not used for transactions)
+	targeter := func(tgt *vegeta.Target) error {
+		*tgt = vegeta.Target{
+			Method: "POST",
+			URL:    "dummy://transaction",
+		}
+		return nil
+	}
+
+	// Create pacer for desired QPS over 1 second
+	rate := vegeta.Rate{Freq: t.config.QPS, Per: time.Second}
+	pacer := vegeta.ConstantPacer{Freq: rate.Freq, Per: rate.Per}
+
+	// Attack for 1 second duration
+	duration := time.Second
+	results := attacker.Attack(targeter, pacer, duration, "tx_attack")
+
+	// Process results
+	done := make(chan bool)
 	go func() {
-		startExecTime := time.Now()
-		endTime := startExecTime.Add(time.Second)
-
-		for i := range t.config.QPS {
-			// Calculate how much time we have left
-			remainingTime := time.Until(endTime)
-
-			// Calculate sleep time to distribute remaining transactions evenly
-			sleepTime := remainingTime / time.Duration(t.config.QPS-i)
-
-			// generate and sign tx
-			go func() {
-				if ctx.Err() != nil && !isFailed {
-					return
-				}
-
-				tx, err := t.generateTransaction(ctx)
-				if err != nil {
-					t.logger.Errorf("Failed to create transaction: %v", err)
-					t.ctx.SetResult(types.TaskResultFailure)
-					isFailed = true
-					return
-				}
-
-				sentTxCount++
-
-				if sentTxCount%t.config.MeasureInterval == 0 {
-					elapsed := time.Since(startTime)
-					t.logger.Infof("Sent %d transactions in %.2fs", sentTxCount, elapsed.Seconds())
-				}
-
-				err = client.GetRPCClient().SendTransaction(ctx, tx)
-				if err != nil {
-					t.logger.WithField("client", client.GetName()).Errorf("Failed to send transaction: %v", err)
-					t.ctx.SetResult(types.TaskResultFailure)
-					isFailed = true
-					return
-				}
-
-				txs = append(txs, tx)
-			}()
-
-			if isFailed {
+		defer close(done)
+		for result := range results {
+			if result.Error != "" {
+				t.logger.Errorf("Transaction error: %s", result.Error)
+				t.ctx.SetResult(types.TaskResultFailure)
+				isFailed = true
 				return
 			}
 
-			time.Sleep(sleepTime)
+			sentTxCount++
+
+			// Note: We can't easily get the actual tx object from vegeta results
+			// so we'll generate them again for the broadcast to other clients
 		}
 
-		execTime := time.Since(startExecTime)
-		t.logger.Infof("Time to generate %d transactions: %v", t.config.QPS, execTime)
+		execTime := time.Since(startTime)
+		t.logger.Infof("Time to send %d transactions: %v", sentTxCount, execTime)
 	}()
 
-	lastMeasureTime := time.Now()
-	gotTx := 0
+	// Wait for transaction sending to complete
+	<-done
 
 	if isFailed {
 		return nil
 	}
+
+	lastMeasureTime := time.Now()
+	gotTx := 0
 
 	for gotTx < t.config.QPS {
 		if isFailed {
@@ -240,6 +232,16 @@ func (t *Task) Execute(ctx context.Context) error {
 	totalTime := time.Since(startTime)
 	t.logger.Infof("Total time for %d transactions: %.2fs", sentTxCount, totalTime.Seconds())
 
+	// Generate transactions for broadcasting to other clients
+	for range sentTxCount {
+		tx, err := t.generateTransaction(ctx)
+		if err != nil {
+			t.logger.Errorf("Failed to generate transaction for broadcasting: %v", err)
+			continue
+		}
+		txs = append(txs, tx)
+	}
+
 	// send to other clients, for speeding up tx mining
 	for _, tx := range txs {
 		for _, otherClient := range executionClients {
@@ -247,7 +249,7 @@ func (t *Task) Execute(ctx context.Context) error {
 				continue
 			}
 
-			client.GetRPCClient().SendTransaction(ctx, tx)
+			otherClient.GetRPCClient().SendTransaction(ctx, tx)
 		}
 	}
 
@@ -317,9 +319,7 @@ func (t *Task) generateTransaction(ctx context.Context) (*ethtypes.Transaction, 
 		feeCap := &helper.BigInt{Value: *big.NewInt(100000000000)} // 100 Gwei
 		tipCap := &helper.BigInt{Value: *big.NewInt(1000000000)}   // 1 Gwei
 
-		var txObj ethtypes.TxData
-
-		txObj = &ethtypes.DynamicFeeTx{
+		var txObj = &ethtypes.DynamicFeeTx{
 			ChainID:   t.ctx.Scheduler.GetServices().ClientPool().GetExecutionPool().GetBlockCache().GetChainID(),
 			Nonce:     nonce,
 			GasTipCap: &tipCap.Value,
@@ -338,4 +338,95 @@ func (t *Task) generateTransaction(ctx context.Context) (*ethtypes.Transaction, 
 	}
 
 	return tx, nil
+}
+
+// TxAttacker implements a custom vegeta attacker for transaction sending
+type TxAttacker struct {
+	task   *Task
+	client *execution.Client
+	ctx    context.Context
+}
+
+// NewTxAttacker creates a new transaction attacker
+func NewTxAttacker(task *Task, client *execution.Client, ctx context.Context) *TxAttacker {
+	return &TxAttacker{
+		task:   task,
+		client: client,
+		ctx:    ctx,
+	}
+}
+
+// Attack implements the vegeta attacker interface for transaction sending
+func (a *TxAttacker) Attack(targeter vegeta.Targeter, pacer vegeta.Pacer, duration time.Duration, name string) <-chan *vegeta.Result {
+	results := make(chan *vegeta.Result)
+
+	go func() {
+		defer close(results)
+
+		var (
+			began  = time.Now()
+			target vegeta.Target
+			err    error
+			count  int
+		)
+
+		for {
+			elapsed := time.Since(began)
+			if elapsed >= duration {
+				break
+			}
+
+			// Get next target (not used for transactions but required by interface)
+			if err = targeter(&target); err != nil {
+				results <- &vegeta.Result{
+					Error: err.Error(),
+				}
+				continue
+			}
+
+			// Wait for the pacer
+			if hit, ok := pacer.Pace(elapsed, uint64(count)); !ok {
+				break
+			} else if hit > 0 {
+				time.Sleep(hit)
+			}
+
+			// Generate and send transaction
+			before := time.Now()
+			tx, err := a.task.generateTransaction(a.ctx)
+			if err != nil {
+				results <- &vegeta.Result{
+					Error:   fmt.Sprintf("Failed to generate transaction: %v", err),
+					Latency: time.Since(before),
+				}
+				count++
+				continue
+			}
+
+			err = a.client.GetRPCClient().SendTransaction(a.ctx, tx)
+			latency := time.Since(before)
+
+			result := &vegeta.Result{
+				Latency: latency,
+			}
+
+			if err != nil {
+				result.Error = fmt.Sprintf("Failed to send transaction: %v", err)
+				result.Code = 500 // Use HTTP-like error codes
+			} else {
+				result.Code = 200 // Success
+				result.BytesOut = uint64(tx.Size())
+			}
+
+			results <- result
+			count++
+
+			// Log progress
+			if count%a.task.config.MeasureInterval == 0 {
+				a.task.logger.Infof("Sent %d transactions in %.2fs", count, elapsed.Seconds())
+			}
+		}
+	}()
+
+	return results
 }
