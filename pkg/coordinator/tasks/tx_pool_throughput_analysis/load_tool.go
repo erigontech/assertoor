@@ -10,31 +10,25 @@ import (
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/noku-team/assertoor/pkg/coordinator/clients/execution"
 	"github.com/noku-team/assertoor/pkg/coordinator/types"
-	"github.com/noku-team/assertoor/pkg/coordinator/utils/sentry"
 	"github.com/sirupsen/logrus"
 )
 
-// TxExecutor handles transaction execution logic
-type TxExecutor struct {
+// LoadTool handles transaction execution logic
+type LoadTool struct {
 	task                 *Task
 	logger               logrus.FieldLogger
-	transactionGenerator *TransactionGenerator
-	networkManager       *NetworkManager
+	transactionGenerator *TxFactory
+	peer                 *Peer
 }
 
-// NewTxExecutor creates a new transaction executor
-func NewTxExecutor(task *Task, transactionGenerator *TransactionGenerator, networkManager *NetworkManager) *TxExecutor {
-	return &TxExecutor{
+// NewLoadTool creates a new transaction executor
+func NewLoadTool(task *Task, transactionGenerator *TxFactory, peer *Peer) *LoadTool {
+	return &LoadTool{
 		task:                 task,
 		logger:               task.logger,
 		transactionGenerator: transactionGenerator,
-		networkManager:       networkManager,
+		peer:                 peer,
 	}
-}
-
-// readTransactionMessagesSync reads transaction messages from the connection synchronously
-func (e *TxExecutor) readTransactionMessagesSync(conn *sentry.Conn) (*eth.TransactionsPacket, error) {
-	return conn.ReadTransactionMessages()
 }
 
 // TxRequest represents a transaction request with its result
@@ -50,7 +44,7 @@ type TransactionReadResult struct {
 }
 
 // generateTransaction generates a transaction and sends it to the result channel
-func (e *TxExecutor) generateTransaction(ctx context.Context, idx int, txResultChan chan TxRequest, sentTxCount *int64, startTime time.Time, isFailed *bool) {
+func (e *LoadTool) generateTransaction(ctx context.Context, idx int, txResultChan chan TxRequest, sentTxCount *int64, startTime time.Time, isFailed *bool) {
 	// Generate and sign tx
 	tx, err := e.transactionGenerator.GenerateTransaction(ctx)
 	if err != nil {
@@ -75,7 +69,7 @@ func (e *TxExecutor) generateTransaction(ctx context.Context, idx int, txResultC
 }
 
 // processTransactions processes transactions from the result channel
-func (e *TxExecutor) processTransactions(ctx context.Context, client *execution.Client, txResultChan chan TxRequest, txs *[]*ethtypes.Transaction, isFailed *bool, wg *sync.WaitGroup) {
+func (e *LoadTool) processTransactions(ctx context.Context, client *execution.Client, txResultChan chan TxRequest, txs *[]*ethtypes.Transaction, isFailed *bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for txReq := range txResultChan {
 		if txReq.err != nil || *isFailed {
@@ -97,7 +91,7 @@ func (e *TxExecutor) processTransactions(ctx context.Context, client *execution.
 }
 
 // sendTransactions sends transactions at the specified QPS rate
-func (e *TxExecutor) sendTransactions(ctx context.Context, client *execution.Client, qpsConfig QPSConfig, txs *[]*ethtypes.Transaction, sentTxCount *int64, isFailed *bool, sendingDone chan struct{}, startTime time.Time) {
+func (e *LoadTool) sendTransactions(ctx context.Context, client *execution.Client, qpsConfig QPSConfig, txs *[]*ethtypes.Transaction, sentTxCount *int64, isFailed *bool, sendingDone chan struct{}, startTime time.Time) {
 	defer close(sendingDone)
 
 	startExecTime := time.Now()
@@ -152,14 +146,8 @@ func (e *TxExecutor) sendTransactions(ctx context.Context, client *execution.Cli
 	e.logger.Infof("Time to generate %d transactions at %d QPS: %v", int(atomic.LoadInt64(sentTxCount)), qpsConfig.QPS, execTime)
 }
 
-// readTransactionMessages reads transaction messages from the connection
-func (e *TxExecutor) readTransactionMessages(conn *sentry.Conn, readChan chan TransactionReadResult) {
-	txs, err := conn.ReadTransactionMessages()
-	readChan <- TransactionReadResult{txs, err}
-}
-
 // ExecuteQPSLevel executes transactions at a specific QPS level
-func (e *TxExecutor) ExecuteQPSLevel(ctx context.Context, client *execution.Client, conn *sentry.Conn, qpsConfig QPSConfig) ([]*ethtypes.Transaction, int, time.Duration, float64, error) {
+func (e *LoadTool) ExecuteQPSLevel(ctx context.Context, client *execution.Client, peer *Peer, qpsConfig QPSConfig) ([]*ethtypes.Transaction, int, time.Duration, float64, error) {
 	e.logger.Infof("Starting test with QPS: %d for duration: %v", qpsConfig.QPS, qpsConfig.Duration)
 
 	var txs []*ethtypes.Transaction
@@ -212,7 +200,7 @@ func (e *TxExecutor) ExecuteQPSLevel(ctx context.Context, client *execution.Clie
 		readChan := make(chan TransactionReadResult)
 
 		// Read transaction messages in a separate goroutine
-		go e.readTransactionMessages(conn, readChan)
+		go peer.ReadTransactionMessages(readChan)
 
 		select {
 		case result := <-readChan:

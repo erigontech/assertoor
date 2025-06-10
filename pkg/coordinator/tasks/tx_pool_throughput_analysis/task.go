@@ -93,19 +93,19 @@ func (t *Task) Execute(ctx context.Context) error {
 	var client *execution.Client = executionClients[rand.Intn(len(executionClients))]
 
 	// Initialize components
-	transactionGenerator := NewTransactionGenerator(t)
-	networkManager := NewNetworkManager(t)
-	txExecutor := NewTxExecutor(t, transactionGenerator, networkManager)
-	resultsManager := NewResultsManager(t)
+	txFactory := NewTxFactory(t)
+	peer := NewPeer(t)
+	loadTool := NewLoadTool(t, txFactory, peer)
+	resultPresentation := NewResultPresentation(t)
 
-	// Establish TCP connection
-	conn, err := networkManager.GetTcpConn(ctx, client)
+	// Establish tcp connection to the execution client on the p2p network
+	err = peer.Connect(client)
 	if err != nil {
 		t.logger.Errorf("Failed to get wire eth TCP connection: %v", err)
 		t.ctx.SetResult(types.TaskResultFailure)
 		return nil
 	}
-	defer conn.Close()
+	defer peer.Close()
 
 	// Create a table to store results for each QPS level
 	var results []QPSResult
@@ -113,7 +113,7 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	// Iterate through each QPS level
 	for _, qpsConfig := range t.config.QPSLevels {
-		txs, gotTx, totalTime, txPerSecond, err := txExecutor.ExecuteQPSLevel(ctx, client, conn, qpsConfig)
+		txs, gotTx, totalTime, txPerSecond, err := loadTool.ExecuteQPSLevel(ctx, client, peer, qpsConfig)
 		if err != nil {
 			t.logger.Errorf("Failed to execute QPS level %d: %v", qpsConfig.QPS, err)
 			t.ctx.SetResult(types.TaskResultFailure)
@@ -133,7 +133,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Display results table
-	resultsManager.DisplayResults(results)
+	resultPresentation.DisplayResults(results)
 
 	// Send to other clients, for speeding up tx mining
 	for _, tx := range allTxs {
@@ -147,7 +147,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Create JSON output with all results
-	resultsManager.CreateOutputs(results)
+	resultPresentation.CreateOutputs(results)
 
 	t.ctx.SetResult(types.TaskResultSuccess)
 	return nil

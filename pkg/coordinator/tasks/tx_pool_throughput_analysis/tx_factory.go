@@ -10,20 +10,20 @@ import (
 	"github.com/noku-team/assertoor/pkg/coordinator/helper"
 )
 
-// TransactionGenerator handles transaction generation logic
-type TransactionGenerator struct {
+// TxFactory handles transaction built logic
+type TxFactory struct {
 	task *Task
 }
 
-// NewTransactionGenerator creates a new transaction generator
-func NewTransactionGenerator(task *Task) *TransactionGenerator {
-	return &TransactionGenerator{
+// NewTxFactory creates a new transaction generator
+func NewTxFactory(task *Task) *TxFactory {
+	return &TxFactory{
 		task: task,
 	}
 }
 
 // buildDynamicFeeTx constructs a dynamic fee transaction for the wallet
-func (g *TransactionGenerator) buildDynamicFeeTx(_ context.Context, nonce uint64, _ bind.SignerFn) (*ethtypes.Transaction, error) {
+func (g *TxFactory) buildDynamicFeeTx(_ context.Context, nonce uint64, _ bind.SignerFn) (*ethtypes.Transaction, error) {
 	addr := g.task.wallet.GetAddress()
 	toAddr := &addr
 
@@ -49,7 +49,7 @@ func (g *TransactionGenerator) buildDynamicFeeTx(_ context.Context, nonce uint64
 }
 
 // GenerateTransaction creates a new transaction
-func (g *TransactionGenerator) GenerateTransaction(ctx context.Context) (*ethtypes.Transaction, error) {
+func (g *TxFactory) GenerateTransaction(ctx context.Context) (*ethtypes.Transaction, error) {
 	tx, err := g.task.wallet.BuildTransaction(ctx, g.buildDynamicFeeTx)
 
 	if err != nil {

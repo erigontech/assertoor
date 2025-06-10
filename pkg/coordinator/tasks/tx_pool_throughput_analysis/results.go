@@ -15,22 +15,22 @@ type QPSResult struct {
 	TxPerSecond    float64
 }
 
-// ResultsManager handles results processing and reporting
-type ResultsManager struct {
+// ResultPresentation handles results processing and reporting
+type ResultPresentation struct {
 	task   *Task
 	logger logrus.FieldLogger
 }
 
-// NewResultsManager creates a new results manager
-func NewResultsManager(task *Task) *ResultsManager {
-	return &ResultsManager{
+// NewResultPresentation creates a new results manager
+func NewResultPresentation(task *Task) *ResultPresentation {
+	return &ResultPresentation{
 		task:   task,
 		logger: task.logger,
 	}
 }
 
 // DisplayResults displays the results table
-func (r *ResultsManager) DisplayResults(results []QPSResult) {
+func (r *ResultPresentation) DisplayResults(results []QPSResult) {
 	r.logger.Infof("=== Throughput Analysis Results ===")
 	r.logger.Infof("%-10s | %-15s | %-15s | %-15s", "QPS", "Tx Processed", "Time (s)", "Tx/s")
 	r.logger.Infof("%-10s | %-15s | %-15s | %-15s", "----------", "---------------", "---------------", "---------------")
@@ -42,7 +42,7 @@ func (r *ResultsManager) DisplayResults(results []QPSResult) {
 }
 
 // CreateOutputs creates JSON outputs for the task
-func (r *ResultsManager) CreateOutputs(results []QPSResult) {
+func (r *ResultPresentation) CreateOutputs(results []QPSResult) {
 	outputResults := make([]map[string]interface{}, len(results))
 	for i, result := range results {
 		outputResults[i] = map[string]interface{}{
