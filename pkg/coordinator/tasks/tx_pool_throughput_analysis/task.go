@@ -2,23 +2,14 @@ package txpoolcheck
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
 	"github.com/noku-team/assertoor/pkg/coordinator/utils/tx_load_tool"
-	"math/big"
 	"math/rand"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/core/forkid"
-	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/noku-team/assertoor/pkg/coordinator/clients/execution"
-	"github.com/noku-team/assertoor/pkg/coordinator/helper"
 	"github.com/noku-team/assertoor/pkg/coordinator/types"
-	"github.com/noku-team/assertoor/pkg/coordinator/utils/sentry"
 	"github.com/noku-team/assertoor/pkg/coordinator/wallet"
 	"github.com/sirupsen/logrus"
 )
@@ -186,78 +177,4 @@ func (t *Task) Execute(ctx context.Context) error {
 	t.logger.Infof("outputs_json: %s", string(outputsJSON))
 
 	return nil
-}
-
-func (t *Task) getTcpConn(ctx context.Context, client *execution.Client) (*sentry.Conn, error) {
-	chainConfig := params.AllDevChainProtocolChanges
-
-	head, err := client.GetRPCClient().GetLatestBlock(ctx)
-	if err != nil {
-		t.ctx.SetResult(types.TaskResultFailure)
-		return nil, err
-	}
-
-	chainID, err := client.GetRPCClient().GetEthClient().ChainID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	chainConfig.ChainID = chainID
-
-	genesis, err := client.GetRPCClient().GetEthClient().BlockByNumber(ctx, new(big.Int).SetUint64(0))
-	if err != nil {
-		t.logger.Errorf("Failed to fetch genesis block: %v", err)
-		t.ctx.SetResult(types.TaskResultFailure)
-		return nil, err
-	}
-
-	conn, err := sentry.GetTcpConn(client)
-	if err != nil {
-		t.logger.Errorf("Failed to get TCP connection: %v", err)
-		t.ctx.SetResult(types.TaskResultFailure)
-		return nil, err
-	}
-
-	forkId := forkid.NewID(chainConfig, genesis, head.NumberU64(), head.Time())
-
-	// handshake
-	err = conn.Peer(chainConfig.ChainID, genesis.Hash(), head.Hash(), forkId, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	t.logger.Infof("Connected to %s", client.GetName())
-
-	return conn, nil
-}
-
-func (t *Task) generateTransaction(ctx context.Context, i int) (*ethtypes.Transaction, error) {
-	tx, err := t.wallet.BuildTransaction(ctx, func(_ context.Context, nonce uint64, _ bind.SignerFn) (*ethtypes.Transaction, error) {
-		addr := t.wallet.GetAddress()
-		toAddr := &addr
-
-		txAmount, _ := crand.Int(crand.Reader, big.NewInt(0).SetUint64(10*1e18))
-
-		feeCap := &helper.BigInt{Value: *big.NewInt(100000000000)} // 100 Gwei
-		tipCap := &helper.BigInt{Value: *big.NewInt(1000000000)}   // 1 Gwei
-
-		txObj := &ethtypes.DynamicFeeTx{
-			ChainID:   t.ctx.Scheduler.GetServices().ClientPool().GetExecutionPool().GetBlockCache().GetChainID(),
-			Nonce:     nonce,
-			GasTipCap: &tipCap.Value,
-			GasFeeCap: &feeCap.Value,
-			Gas:       50000,
-			To:        toAddr,
-			Value:     txAmount,
-			Data:      []byte(fmt.Sprintf("tx_index:%d", i)),
-		}
-
-		return ethtypes.NewTx(txObj), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return tx, nil
 }
