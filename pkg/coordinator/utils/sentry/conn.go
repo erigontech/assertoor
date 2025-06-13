@@ -302,7 +302,7 @@ func readUntil[T any](conn *Conn, ctx context.Context) (*T, error) {
 	case err := <-errCh:
 		return nil, err
 	case <-ctx.Done():
-		return nil, fmt.Errorf("timeout expired while reading messages: %w", ctx.Err())
+		return nil, fmt.Errorf("timeoutExpired")
 	}
 }
 
