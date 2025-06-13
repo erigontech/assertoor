@@ -4,10 +4,11 @@ import (
 	"context"
 	crand "crypto/rand"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/forkid"
-	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
@@ -194,8 +195,13 @@ func (l *Load) MeasurePropagationLatencies() (*LoadResult, error) {
 	// Wait P2P event messages
 	var receivedEvents int = 0
 	for {
-		txes, err := conn.ReadTransactionMessages()
+		txes, err := conn.ReadTransactionMessages(time.Duration(60) * time.Second)
 		if err != nil {
+			if err.Error() == "timeoutExpired" {
+				l.target.logger.Warnf("Timeout expired while reading p2p events")
+				return l.Result, nil
+			}
+
 			l.target.logger.Errorf("Failed reading p2p events: %v", err)
 			l.target.task_ctx.SetResult(types.TaskResultFailure)
 			l.Result.Failed = true
@@ -221,13 +227,12 @@ func (l *Load) MeasurePropagationLatencies() (*LoadResult, error) {
 			}
 
 			// log the duplicated p2p events, and count duplicated p2p events
-			// todo: add a timeout of N seconds that activates if DuplicatedP2PEventCount + receivedEvents >= totNumberOfTxes, if exceeded, exit the function
 			if l.Result.LatenciesMus[tx_index] != 0 {
 				l.Result.DuplicatedP2PEventCount++
+			} else {
+				l.Result.LatenciesMus[tx_index] = time.Since(l.Result.TxStartTime[tx_index]).Microseconds()
+				receivedEvents++
 			}
-
-			l.Result.LatenciesMus[tx_index] = time.Since(l.Result.TxStartTime[tx_index]).Microseconds()
-			receivedEvents++
 
 			if receivedEvents%logInterval == 0 {
 				l.target.logger.Infof("Received %d p2p events", receivedEvents)
