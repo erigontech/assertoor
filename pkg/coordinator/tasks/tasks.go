@@ -41,6 +41,7 @@ import (
 	sleep "github.com/noku-team/assertoor/pkg/coordinator/tasks/sleep"
 	txpoolclean "github.com/noku-team/assertoor/pkg/coordinator/tasks/tx_pool_clean"
 	txpoolthroughputanalysis "github.com/noku-team/assertoor/pkg/coordinator/tasks/tx_pool_throughput_analysis"
+	txpoollatencyanalysis "github.com/noku-team/assertoor/pkg/coordinator/tasks/tx_pool_latency_analysis"
 )
 
 var AvailableTaskDescriptors = []*types.TaskDescriptor{
@@ -79,7 +80,7 @@ var AvailableTaskDescriptors = []*types.TaskDescriptor{
 	runtaskoptions.TaskDescriptor,
 	runtasks.TaskDescriptor,
 	runtasksconcurrent.TaskDescriptor,
-	txpoolthroughputanalysis.TaskDescriptor,
+	txpoollatencyanalysis.TaskDescriptor,
 	txpoolthroughputanalysis.TaskDescriptor,
 	txpoolclean.TaskDescriptor,
 	sleep.TaskDescriptor,
