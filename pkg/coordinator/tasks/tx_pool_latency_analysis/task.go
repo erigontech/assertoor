@@ -113,7 +113,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	var testDeadline time.Time = time.Now().Add(time.Duration(t.config.Duration_s+60*30) * time.Second)
 
 	load_target := tx_load_tool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
-	load := tx_load_tool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline)
+	load := tx_load_tool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline, t.config.LogInterval)
 
 	// Generate and sending transactions, waiting for their propagation
 	err = load.Execute()

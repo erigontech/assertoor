@@ -20,8 +20,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const logInterval = 100 // Log every 100 transactions
-
 type LoadTarget struct {
 	ctx      context.Context
 	task_ctx *types.TaskContext
@@ -73,21 +71,23 @@ func NewLoadResult(totNumberOfTxes int) *LoadResult {
 }
 
 type Load struct {
-	target       *LoadTarget
-	testDeadline time.Time
-	TPS          int
-	Duration_s   int
-	Result       *LoadResult
+	target          *LoadTarget
+	testDeadline    time.Time
+	TPS             int
+	Duration_s      int
+	LogInterval     int
+	Result          *LoadResult
 }
 
 // NewLoad creates a new Load instance
-func NewLoad(target *LoadTarget, TPS int, duration_s int, testDeadline time.Time) *Load {
+func NewLoad(target *LoadTarget, TPS int, duration_s int, testDeadline time.Time, logInterval int) *Load {
 	return &Load{
-		target:       target,
-		TPS:          TPS,
-		Duration_s:   duration_s,
-		testDeadline: testDeadline,
-		Result:       NewLoadResult(TPS * duration_s),
+		target:          target,
+		TPS:             TPS,
+		Duration_s:      duration_s,
+		testDeadline:    testDeadline,
+		LogInterval:     logInterval,
+		Result:          NewLoadResult(TPS * duration_s),
 	}
 }
 
@@ -140,7 +140,7 @@ func (l *Load) Execute() error {
 				l.Result.SentTxCount++
 
 				// log transaction sending
-				if l.Result.SentTxCount%logInterval == 0 {
+				if l.Result.SentTxCount%l.LogInterval == 0 {
 					elapsed := time.Since(l.Result.StartTime)
 					l.target.logger.Infof("Sent %d transactions in %.2fs", l.Result.SentTxCount, elapsed.Seconds())
 				}
@@ -234,7 +234,7 @@ func (l *Load) MeasurePropagationLatencies() (*LoadResult, error) {
 				receivedEvents++
 			}
 
-			if receivedEvents%logInterval == 0 {
+			if receivedEvents%l.LogInterval == 0 {
 				l.target.logger.Infof("Received %d p2p events", receivedEvents)
 			}
 		}
