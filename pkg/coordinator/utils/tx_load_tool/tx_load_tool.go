@@ -199,7 +199,7 @@ func (l *Load) MeasurePropagationLatencies() (*LoadResult, error) {
 		if err != nil {
 			if err.Error() == "timeoutExpired" {
 				l.target.logger.Warnf("Timeout expired while reading p2p events")
-				return l.Result, nil
+				break
 			}
 
 			l.target.logger.Errorf("Failed reading p2p events: %v", err)
