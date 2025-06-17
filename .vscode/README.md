@@ -59,9 +59,6 @@ participants:
   el_image: test/erigon:current
   cl_type: prysm
   count: 2
-snooper_enabled: true
-network_params:
-  seconds_per_slot: 12
 additional_services:
 - assertoor
 - dora
