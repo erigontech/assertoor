@@ -34,7 +34,7 @@
     {
       "label": "db-cleanup",
       "type": "shell",
-      "command": "PGPASSWORD='' psql -h 127.0.0.1 -p 5432 -U pgsql -d assertoor -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' || true",
+      "command": "PGPASSWORD='' psql -h 127.0.0.1 -p 5432 -U postgres -d assertoor -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' || true",
       "group": "build",
       "presentation": {
         "echo": true,
