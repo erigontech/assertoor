@@ -32,9 +32,24 @@
       "problemMatcher": []
     },
     {
-      "label": "db-cleanup",
+      "label": "db-pgsql-cleanup",
       "type": "shell",
       "command": "PGPASSWORD='' psql -h 127.0.0.1 -p 5432 -U postgres -d assertoor -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;' || true",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "db-sqlite-cleanup",
+      "type": "shell",
+      "command": "rm -f .hack/devnet/sqlite.db* || true",
       "group": "build",
       "presentation": {
         "echo": true,
@@ -52,7 +67,8 @@
       "dependsOn": [
         "kurtosis-stop",
         "kurtosis-remove",
-        "db-cleanup",
+        "db-pgsql-cleanup",
+        "db-sqlite-cleanup",
         "devnet-setup-only"
       ]
     },

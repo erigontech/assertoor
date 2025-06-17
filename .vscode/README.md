@@ -157,20 +157,22 @@ logging:
   level: "debug"
   colorOutput: true
   
-# Custom database settings (optional)
-# database:
-#   engine: "sqlite"
-#   sqlite:
-#     file: "./my-database.db"
-
+# Custom database settings (optional, but needed for macos, by default it uses /app folder, that is not writable)
 database:
-  engine: "pgsql"
-  pgsql:
-    host: "localhost"
-    port: "5432"
-    username: "postgres"
-    password: ""
-    database: "assertoor"
+  engine: "sqlite"
+  sqlite:
+    file: "${DEVNET_DIR}/sqlite.db"
+
+# database:
+#   engine: "pgsql"
+#   pgsql:
+#     host: "localhost"
+#     port: "5432"
+#     username: "postgres"
+#     password: ""
+#     database: "assertoor"
+#     max_open_conns: 50
+#     max_idle_conns: 10
 ```
 
 ### Common customizations
