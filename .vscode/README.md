@@ -39,8 +39,49 @@ The `Debug Go assertoor` configuration in the `launch.json` file allows you to s
 4. Click the play button or press F5
 5. The debugger will start automatically after completing the environment setup
 
+## Custom Enclave test configuration
+
+You can create a custom devnet configuration to customize the testing environment according to your needs.
+
+### How to add a custom configuration
+
+1. Create the file `.hack/devnet/custom-kurtosis.devnet.config.yaml` in your workspace
+2. Add your desired configuration to this file
+3. The devnet setup will automatically use your custom configuration if it exists
+
+### Example Configuration
+
+Here's an example of a custom configuration:
+
+```yaml
+participants:
+- el_type: erigon
+  el_image: test/erigon:current
+  cl_type: prysm
+  count: 2
+snooper_enabled: true
+network_params:
+  seconds_per_slot: 12
+additional_services:
+- assertoor
+- dora
+assertoor_params:
+  run_stability_check: false
+  run_block_proposal_check: true
+  tests:
+  - https://raw.githubusercontent.com/noku-team/assertoor/master/playbooks/dev/tx-pool-check-short.yaml
+```
+
+This configuration:
+
+- Sets up 2 nodes with Erigon (execution layer) and Prysm (consensus layer)
+- Enables additional services (Assertoor and Dora)
+- Configures Assertoor with specific parameters and test playbooks
+- Uses custom Docker images for testing
+
 ### Notes
 
 - Make sure all requirements are installed before launching the debugger
 - The `devnet-setup` task may take a few minutes the first time
 - You can set breakpoints in the Go code before starting the debug session
+- Custom configurations allow you to test different network setups and scenarios
