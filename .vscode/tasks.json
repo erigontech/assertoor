@@ -1,0 +1,43 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "kurtosis-cleanup",
+      "type": "shell",
+      "command": "kurtosis enclave stop assertoor && kurtosis enclave rm assertoor",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "devnet-setup",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "kurtosis-cleanup",
+        "devnet-setup-only"
+      ]
+    },
+    {
+      "label": "devnet-setup-only",
+      "type": "shell",
+      "command": ".hack/devnet/run.sh",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+} 
