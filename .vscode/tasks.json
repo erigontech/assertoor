@@ -2,9 +2,24 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "kurtosis-cleanup",
+      "label": "kurtosis-stop",
       "type": "shell",
-      "command": "kurtosis enclave stop assertoor && kurtosis enclave rm assertoor",
+      "command": "kurtosis enclave stop assertoor || true",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "kurtosis-remove",
+      "type": "shell",
+      "command": "kurtosis enclave rm assertoor || true",
       "group": "build",
       "presentation": {
         "echo": true,
@@ -20,7 +35,8 @@
       "label": "devnet-setup",
       "dependsOrder": "sequence",
       "dependsOn": [
-        "kurtosis-cleanup",
+        "kurtosis-stop",
+        "kurtosis-remove",
         "devnet-setup-only"
       ]
     },
