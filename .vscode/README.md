@@ -7,10 +7,70 @@ This document explains how to use the debug configuration for Assertoor in VSCod
 Before using the debugger, make sure you have installed:
 
 - **Go v1.23.0** - Required programming language
-- **yq** - Tool for manipulating YAML files, installable via Homebrew:
+- **Docker** - Container platform required by Kurtosis. Install Docker Desktop for your platform from [docker.com](https://www.docker.com/products/docker-desktop/)
+- **Kurtosis CLI** - Development environment orchestration tool. Install following the official guide:
+  
+  **macOS (Homebrew):**
+
+  ```bash
+  brew install kurtosis-tech/tap/kurtosis-cli
+  ```
+  
+  **Ubuntu (APT):**
+
+  ```bash
+  echo "deb [trusted=yes] https://apt.fury.io/kurtosis-tech/ /" | sudo tee /etc/apt/sources.list.d/kurtosis.list
+  sudo apt update
+  sudo apt install kurtosis-cli
+  ```
+  
+  **RHEL (YUM):**
+
+  ```bash
+  echo '[kurtosis]
+  name=Kurtosis
+  baseurl=https://yum.fury.io/kurtosis-tech/
+  enabled=1
+  gpgcheck=0' | sudo tee /etc/yum.repos.d/kurtosis.repo
+  sudo yum install kurtosis-cli
+  ```
+  
+  **Other platforms:** Download from [releases page](https://github.com/kurtosis-tech/kurtosis-cli-release-artifacts/releases)
+
+- **yq** - Tool for manipulating YAML files:
+  
+  **macOS:**
 
   ```bash
   brew install yq
+  ```
+  
+  **Ubuntu/Debian:**
+
+  ```bash
+  sudo apt install yq
+  ```
+  
+  **Other platforms:** Download from [yq releases](https://github.com/mikefarah/yq/releases)
+
+- **PostgreSQL Client (psql)** - Required for database cleanup operations:
+  
+  **macOS:**
+
+  ```bash
+  brew install postgresql
+  ```
+  
+  **Ubuntu/Debian:**
+
+  ```bash
+  sudo apt install postgresql-client
+  ```
+  
+  **RHEL/CentOS:**
+  
+  ```bash
+  sudo yum install postgresql
   ```
 
 ## "Debug Go assertoor" Configuration
