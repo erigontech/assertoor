@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	MessageId int32
+	MessageID int32
 
 	sentryenv struct {
 		endpoint   net.PacketConn
@@ -34,7 +34,7 @@ const (
 	waitTime = 300 * time.Millisecond
 )
 
-func BasicPing(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger) {
+func BasicPing(remoteAddress, rpcAdmin string, logger logrus.FieldLogger) {
 	te := connectToP2p(remoteAddress, rpcAdmin, logger)
 	defer te.close()
 
@@ -50,7 +50,10 @@ func BasicPing(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger)
 }
 
 func (te *sentryenv) localEndpoint() v4wire.Endpoint {
-	addr := te.endpoint.LocalAddr().(*net.UDPAddr)
+	addr, ok := te.endpoint.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		panic("expected UDP address")
+	}
 
 	return v4wire.Endpoint{
 		IP:  addr.IP.To4(),
@@ -63,8 +66,8 @@ func (te *sentryenv) remoteEndpoint() v4wire.Endpoint {
 	return v4wire.NewEndpoint(te.remoteAddr.AddrPort(), 0)
 }
 
-func (env *sentryenv) close() {
-	env.endpoint.Close()
+func (te *sentryenv) close() {
+	te.endpoint.Close()
 }
 
 func (te *sentryenv) send(req v4wire.Packet) []byte {
@@ -144,7 +147,11 @@ func (te *sentryenv) checkPong(reply v4wire.Packet, pingHash []byte) error {
 		return fmt.Errorf("expected PONG reply, got %v %v", reply.Name(), reply)
 	}
 
-	pong := reply.(*v4wire.Pong)
+	pong, ok := reply.(*v4wire.Pong)
+	if !ok {
+		return errors.New("failed to cast reply to *v4wire.Pong")
+	}
+
 	if !bytes.Equal(pong.ReplyTok, pingHash) {
 		return fmt.Errorf("PONG reply token mismatch: got %x, want %x", pong.ReplyTok, pingHash)
 	}
@@ -214,7 +221,7 @@ func (te *sentryenv) checkPong(reply v4wire.Packet, pingHash []byte) error {
 // 	return ready, nil
 // }
 
-func connectToP2p(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger) *sentryenv {
+func connectToP2p(remoteAddress, rpcAdmin string, logger logrus.FieldLogger) *sentryenv {
 	endpoint, err := net.ListenPacket("udp", "0.0.0.0:0")
 	if err != nil {
 		logger.Errorf("Failed to listen: %v", err)

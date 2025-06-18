@@ -30,11 +30,11 @@ type LoadTarget struct {
 
 // NewLoadTarget creates a new LoadTarget instance
 func NewLoadTarget(ctx context.Context, taskCtx *types.TaskContext, logger logrus.FieldLogger,
-	wallet *wallet.Wallet, client *execution.Client) *LoadTarget {
+	w *wallet.Wallet, client *execution.Client) *LoadTarget {
 	return &LoadTarget{
 		ctx:     ctx,
 		taskCtx: taskCtx,
-		wallet:  wallet,
+		wallet:  w,
 		logger:  logger,
 		client:  client,
 	}
@@ -80,14 +80,14 @@ type Load struct {
 }
 
 // NewLoad creates a new Load instance
-func NewLoad(target *LoadTarget, TPS int, durationS int, testDeadline time.Time, logInterval int) *Load {
+func NewLoad(target *LoadTarget, tps int, durationS int, testDeadline time.Time, logInterval int) *Load {
 	return &Load{
 		target:       target,
-		TPS:          TPS,
+		TPS:          tps,
 		DurationS:    durationS,
 		testDeadline: testDeadline,
 		LogInterval:  logInterval,
-		Result:       NewLoadResult(TPS * durationS),
+		Result:       NewLoadResult(tps * durationS),
 	}
 }
 

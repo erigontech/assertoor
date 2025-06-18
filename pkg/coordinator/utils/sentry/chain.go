@@ -56,19 +56,17 @@ type Chain struct {
 // NewChain takes the given chain.rlp file, and decodes and returns
 // the blocks from the file.
 func NewChain(dir string) (*Chain, error) {
-	gen, err := loadGenesis(filepath.Join(dir, "genesis.json"))
+	gblock, gen, err := loadGenesis(filepath.Join(dir, "genesis.json"))
 	if err != nil {
 		return nil, err
 	}
-
-	gblock := gen.ToBlock()
 
 	blocks, err := blocksFromFile(filepath.Join(dir, "chain.rlp"), gblock)
 	if err != nil {
 		return nil, err
 	}
 
-	state, err := readState(filepath.Join(dir, "headstate.json"))
+	headState, err := readState(filepath.Join(dir, "headstate.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +79,7 @@ func NewChain(dir string) (*Chain, error) {
 	return &Chain{
 		genesis: gen,
 		blocks:  blocks,
-		state:   state,
+		state:   headState,
 		senders: accounts,
 		config:  gen.Config,
 	}, nil
@@ -124,7 +122,7 @@ func (c *Chain) AccountsInHashOrder() []state.DumpAccount {
 
 // CodeHashes returns all bytecode hashes contained in the head state.
 func (c *Chain) CodeHashes() []common.Hash {
-	var hashes []common.Hash
+	hashes := make([]common.Hash, 0, len(c.state))
 
 	seen := make(map[common.Hash]struct{})
 	seen[types.EmptyCodeHash] = struct{}{}
@@ -139,7 +137,7 @@ func (c *Chain) CodeHashes() []common.Hash {
 		seen[h] = struct{}{}
 	}
 
-	slices.SortFunc(hashes, (common.Hash).Cmp)
+	slices.SortFunc(hashes, common.Hash.Cmp)
 
 	return hashes
 }
@@ -176,10 +174,10 @@ func (c *Chain) RootAt(height int) common.Hash {
 
 // GetSender returns the address associated with account at the index in the
 // pre-funded accounts list.
-func (c *Chain) GetSender(idx int) (common.Address, uint64) {
+func (c *Chain) GetSender(idx int) (addr common.Address, nonce uint64) {
 	accounts := slices.SortedFunc(maps.Keys(c.senders), common.Address.Cmp)
 
-	addr := accounts[idx]
+	addr = accounts[idx]
 
 	return addr, c.senders[addr].Nonce
 }
@@ -268,18 +266,20 @@ func (c *Chain) Shorten(height int) *Chain {
 	}
 }
 
-func loadGenesis(genesisFile string) (core.Genesis, error) {
+func loadGenesis(genesisFile string) (*types.Block, core.Genesis, error) {
 	chainConfig, err := os.ReadFile(genesisFile)
 	if err != nil {
-		return core.Genesis{}, err
+		return nil, core.Genesis{}, err
 	}
 
 	var gen core.Genesis
 	if err := json.Unmarshal(chainConfig, &gen); err != nil {
-		return core.Genesis{}, err
+		return nil, core.Genesis{}, err
 	}
 
-	return gen, nil
+	gblock := gen.ToBlock()
+
+	return gblock, gen, nil
 }
 
 func blocksFromFile(chainfile string, gblock *types.Block) ([]*types.Block, error) {
@@ -322,28 +322,32 @@ func blocksFromFile(chainfile string, gblock *types.Block) ([]*types.Block, erro
 }
 
 func readState(file string) (map[common.Address]state.DumpAccount, error) {
-	f, err := os.ReadFile(file)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read state: %v", err)
-	}
-
 	var dump state.Dump
-	if err := json.Unmarshal(f, &dump); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal state: %v", err)
+
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	if err := json.NewDecoder(f).Decode(&dump); err != nil {
+		return nil, err
 	}
 
-	state := make(map[common.Address]state.DumpAccount)
+	stateMap := make(map[common.Address]state.DumpAccount)
 
 	for key, acct := range dump.Accounts {
 		var addr common.Address
+
 		if err := addr.UnmarshalText([]byte(key)); err != nil {
-			return nil, fmt.Errorf("invalid address %q", key)
+			panic(err)
 		}
 
-		state[addr] = acct
+		acct.Address = &addr
+		stateMap[addr] = acct
 	}
 
-	return state, nil
+	return stateMap, nil
 }
 
 func readAccounts(file string) (map[common.Address]*senderInfo, error) {

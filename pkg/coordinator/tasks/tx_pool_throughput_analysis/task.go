@@ -1,10 +1,11 @@
-package tx_pool_throughput_analysis
+package txpoolthroughputanalysis
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -62,8 +63,8 @@ func (t *Task) LoadConfig() error {
 		return err
 	}
 
-	if err := config.Validate(); err != nil {
-		return err
+	if validationErr := config.Validate(); validationErr != nil {
+		return validationErr
 	}
 
 	privKey, _ := crypto.HexToECDSA(config.PrivateKey)
@@ -93,11 +94,16 @@ func (t *Task) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	client := executionClients[rand.Intn(len(executionClients))]
+	n, randErr := rand.Int(rand.Reader, big.NewInt(int64(len(executionClients))))
+	if randErr != nil {
+		return fmt.Errorf("failed to generate random number: %w", randErr)
+	}
+
+	client := executionClients[n.Int64()]
 
 	t.logger.Infof("Measuring TxPool transaction propagation *throughput*")
 	t.logger.Infof("Targeting client: %s, TPS: %d, Duration: %d seconds",
-		client.GetName(), t.config.TPS, t.config.Duration_s)
+		client.GetName(), t.config.TPS, t.config.DurationS)
 
 	// Wait for the specified seconds before starting the task
 	if t.config.SecondsBeforeRunning > 0 {
@@ -112,27 +118,27 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Prepare to collect transaction latencies
-	var testDeadline = time.Now().Add(time.Duration(t.config.Duration_s+60*30) * time.Second)
+	testDeadline := time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
 
-	load_target := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
-	load := txloadtool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline, t.config.LogInterval)
+	loadTarget := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
+	load := txloadtool.NewLoad(loadTarget, t.config.TPS, t.config.DurationS, testDeadline, t.config.LogInterval)
 
 	// Generate and sending transactions, waiting for their propagation
-	err = load.Execute()
-	if err != nil {
-		t.logger.Errorf("Error during transaction load execution: %v", err)
+	execErr := load.Execute()
+	if execErr != nil {
+		t.logger.Errorf("Error during transaction load execution: %v", execErr)
 		t.ctx.SetResult(types.TaskResultFailure)
 
-		return err
+		return execErr
 	}
 
 	// Collect the transactions and their latencies
-	result, err := load.MeasurePropagationLatencies()
-	if err != nil {
-		t.logger.Errorf("Error measuring transaction propagation latencies: %v", err)
+	result, measureErr := load.MeasurePropagationLatencies()
+	if measureErr != nil {
+		t.logger.Errorf("Error measuring transaction propagation latencies: %v", measureErr)
 		t.ctx.SetResult(types.TaskResultFailure)
 
-		return err
+		return measureErr
 	}
 
 	// Check if the context was cancelled or other errors occurred
@@ -149,12 +155,11 @@ func (t *Task) Execute(ctx context.Context) error {
 				continue
 			}
 
-			err := otherClient.GetRPCClient().SendTransaction(ctx, tx)
-			if err != nil {
-				t.logger.Errorf("Failed to send transaction to other client: %v", err)
+			if sendErr := otherClient.GetRPCClient().SendTransaction(ctx, tx); sendErr != nil {
+				t.logger.Errorf("Failed to send transaction to other client: %v", sendErr)
 				t.ctx.SetResult(types.TaskResultFailure)
 
-				return err
+				return sendErr
 			}
 		}
 	}
@@ -164,13 +169,13 @@ func (t *Task) Execute(ctx context.Context) error {
 	// Calculate statistics
 	t.logger.Infof("Last measure delay since start time: %s", result.LastMeasureDelay)
 
-	processed_tx_per_second := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
+	processedTxPerSecond := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
 
 	t.logger.Infof("Processed %d transactions in %.2fs, mean throughput: %.2f tx/s",
-		result.TotalTxs, result.LastMeasureDelay.Seconds(), processed_tx_per_second)
+		result.TotalTxs, result.LastMeasureDelay.Seconds(), processedTxPerSecond)
 	t.logger.Infof("Sent %d transactions in %.2fs", result.TotalTxs, result.LastMeasureDelay.Seconds())
 
-	t.ctx.Outputs.SetVar("mean_tps_throughput", processed_tx_per_second)
+	t.ctx.Outputs.SetVar("mean_tps_throughput", processedTxPerSecond)
 	t.ctx.Outputs.SetVar("tx_count", result.TotalTxs)
 	t.ctx.Outputs.SetVar("duplicated_p2p_event_count", result.DuplicatedP2PEventCount)
 	t.ctx.Outputs.SetVar("missed_p2p_event_count", result.NotReceivedP2PEventCount)
@@ -180,7 +185,7 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	outputs := map[string]interface{}{
 		"tx_count":                          result.TotalTxs,
-		"mean_tps_throughput":               processed_tx_per_second,
+		"mean_tps_throughput":               processedTxPerSecond,
 		"duplicated_p2p_event_count":        result.DuplicatedP2PEventCount,
 		"coordinated_omission_events_count": result.CoordinatedOmissionEventCount,
 		"missed_p2p_event_count":            result.NotReceivedP2PEventCount,

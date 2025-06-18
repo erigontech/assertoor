@@ -47,13 +47,13 @@ type Conn struct {
 }
 
 // Read reads a packet from the connection.
-func (c *Conn) Read() (uint64, []byte, error) {
-	err := c.SetReadDeadline(time.Now().Add(timeout))
+func (c *Conn) Read() (code uint64, data []byte, err error) {
+	err = c.SetReadDeadline(time.Now().Add(timeout))
 	if err != nil {
 		return 0, nil, err
 	}
 
-	code, data, _, err := c.Conn.Read()
+	code, data, _, err = c.Conn.Read()
 	if err != nil {
 		return 0, nil, err
 	}
@@ -117,7 +117,10 @@ func (c *Conn) ReadEth() (any, error) {
 		}
 
 		if code == pingMsg {
-			c.Write(baseProto, pongMsg, []byte{})
+			if err := c.Write(baseProto, pongMsg, []byte{}); err != nil {
+				return nil, fmt.Errorf("failed to write pong: %v", err)
+			}
+
 			continue
 		}
 
@@ -167,12 +170,12 @@ func (c *Conn) ReadEth() (any, error) {
 
 // peer performs both the protocol handshake and the status message
 // exchange with the node in order to peer with it.
-func (c *Conn) Peer(chainId *big.Int, genesisHash common.Hash, headHash common.Hash, forkId forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) Peer(chainID *big.Int, genesisHash common.Hash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
 	if err := c.handshake(); err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
 	}
 
-	if err := c.statusExchange(chainId, genesisHash, headHash, forkId, status); err != nil {
+	if err := c.statusExchange(chainID, genesisHash, headHash, forkID, status); err != nil {
 		return fmt.Errorf("status exchange failed: %v", err)
 	}
 
@@ -252,7 +255,7 @@ func (c *Conn) negotiateEthProtocol(caps []p2p.Cap) {
 }
 
 // statusExchange performs a `Status` message exchange with the given node.
-func (c *Conn) statusExchange(chainId *big.Int, genesisHash common.Hash, headHash common.Hash, forkId forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) statusExchange(chainID *big.Int, genesisHash common.Hash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
 loop:
 	for {
 		code, data, err := c.Read()
@@ -272,14 +275,19 @@ loop:
 			break loop
 		case discMsg:
 			var msg []p2p.DiscReason
-			if rlp.DecodeBytes(data, &msg); len(msg) == 0 {
+			if err := rlp.DecodeBytes(data, &msg); err != nil {
+				return fmt.Errorf("failed to decode disconnect message: %v", err)
+			}
+			if len(msg) == 0 {
 				return errors.New("invalid disconnect message")
 			}
 			return fmt.Errorf("disconnect received: %v", pretty.Sdump(msg))
 		case pingMsg:
 			// TODO (renaynay): in the future, this should be an error
 			// (PINGs should not be a response upon fresh connection)
-			c.Write(baseProto, pongMsg, nil)
+			if err := c.Write(baseProto, pongMsg, nil); err != nil {
+				return fmt.Errorf("failed to write pong: %v", err)
+			}
 		default:
 			return fmt.Errorf("bad status message: code %d", code)
 		}
@@ -293,11 +301,11 @@ loop:
 		// default status message
 		status = &eth.StatusPacket{
 			ProtocolVersion: uint32(c.negotiatedProtoVersion),
-			NetworkID:       chainId.Uint64(),
+			NetworkID:       chainID.Uint64(),
 			TD:              new(big.Int).SetUint64(0),
 			Head:            headHash,
 			Genesis:         genesisHash,
-			ForkID:          forkId,
+			ForkID:          forkID,
 		}
 	}
 
@@ -311,7 +319,7 @@ loop:
 // readUntil reads eth protocol messages until a message of the target type is
 // received.  It returns an error if there is a disconnect, timeout expires,
 // or if the context is cancelled before a message of the desired type can be read.
-func readUntil[T any](conn *Conn, ctx context.Context) (*T, error) {
+func readUntil[T any](ctx context.Context, conn *Conn) (*T, error) {
 	resultCh := make(chan *T, 1)
 	errCh := make(chan error, 1)
 
@@ -330,8 +338,7 @@ func readUntil[T any](conn *Conn, ctx context.Context) (*T, error) {
 				continue
 			}
 
-			switch res := received.(type) {
-			case *T:
+			if res, ok := received.(*T); ok {
 				resultCh <- res
 				return
 			}
@@ -350,7 +357,7 @@ func readUntil[T any](conn *Conn, ctx context.Context) (*T, error) {
 
 // readTransactionMessages reads transaction messages from the connection.
 // The timeout parameter is optional - if provided and > 0, the function will timeout after the specified duration.
-func (conn *Conn) ReadTransactionMessages(timeout ...time.Duration) (*eth.TransactionsPacket, error) {
+func (c *Conn) ReadTransactionMessages(timeout ...time.Duration) (*eth.TransactionsPacket, error) {
 	ctx := context.Background()
 
 	if len(timeout) > 0 && timeout[0] > 0 {
@@ -359,7 +366,7 @@ func (conn *Conn) ReadTransactionMessages(timeout ...time.Duration) (*eth.Transa
 		defer cancel()
 	}
 
-	return readUntil[eth.TransactionsPacket](conn, ctx)
+	return readUntil[eth.TransactionsPacket](ctx, c)
 }
 
 // dialAs attempts to dial a given node and perform a handshake using the generated

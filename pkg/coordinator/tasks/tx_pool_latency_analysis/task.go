@@ -1,11 +1,12 @@
-package txpool_latency_analysis
+package txpoollatencyanalysis
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/big"
 	"os"
 	"time"
 
@@ -65,8 +66,8 @@ func (t *Task) LoadConfig() error {
 		return err
 	}
 
-	if err := config.Validate(); err != nil {
-		return err
+	if validationErr := config.Validate(); validationErr != nil {
+		return validationErr
 	}
 
 	privKey, _ := crypto.HexToECDSA(config.PrivateKey)
@@ -96,11 +97,16 @@ func (t *Task) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	client := executionClients[rand.Intn(len(executionClients))]
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(executionClients))))
+	if err != nil {
+		return fmt.Errorf("failed to generate random number: %w", err)
+	}
+
+	client := executionClients[n.Int64()]
 
 	t.logger.Infof("Measuring TxPool transaction propagation *latency*")
 	t.logger.Infof("Targeting client: %s, TPS: %d, Duration: %d seconds",
-		client.GetName(), t.config.TPS, t.config.Duration_s)
+		client.GetName(), t.config.TPS, t.config.DurationS)
 
 	// Wait for the specified seconds before starting the task
 	if t.config.SecondsBeforeRunning > 0 {
@@ -115,10 +121,10 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Prepare to collect transaction latencies
-	var testDeadline = time.Now().Add(time.Duration(t.config.Duration_s+60*30) * time.Second)
+	var testDeadline = time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
 
-	load_target := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
-	load := txloadtool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline, t.config.LogInterval)
+	loadTarget := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
+	load := txloadtool.NewLoad(loadTarget, t.config.TPS, t.config.DurationS, testDeadline, t.config.LogInterval)
 
 	// Generate and sending transactions, waiting for their propagation
 	err = load.Execute()
@@ -152,12 +158,11 @@ func (t *Task) Execute(ctx context.Context) error {
 				continue
 			}
 
-			err := otherClient.GetRPCClient().SendTransaction(ctx, tx)
-			if err != nil {
-				t.logger.Errorf("Failed to send transaction to other client: %v", err)
+			if sendErr := otherClient.GetRPCClient().SendTransaction(ctx, tx); sendErr != nil {
+				t.logger.Errorf("Failed to send transaction to other client: %v", sendErr)
 				t.ctx.SetResult(types.TaskResultFailure)
 
-				return err
+				return sendErr
 			}
 		}
 	}
@@ -165,9 +170,9 @@ func (t *Task) Execute(ctx context.Context) error {
 	t.logger.Infof("Total transactions sent: %d", result.TotalTxs)
 
 	// Calculate statistics
-	var maxLatency int64 = 0
+	var maxLatency int64
 
-	var minLatency int64 = math.MaxInt64
+	minLatency := int64(math.MaxInt64)
 
 	for _, lat := range result.LatenciesMus {
 		if lat > maxLatency {
@@ -183,9 +188,9 @@ func (t *Task) Execute(ctx context.Context) error {
 		maxLatency, maxLatency/1000, minLatency, minLatency/1000)
 
 	// Generate HDR plot
-	plot, err := hdr.HdrPlot(result.LatenciesMus)
-	if err != nil {
-		t.logger.Errorf("Failed to generate HDR plot: %v", err)
+	plot, plotErr := hdr.Plot(result.LatenciesMus)
+	if plotErr != nil {
+		t.logger.Errorf("Failed to generate HDR plot: %v", plotErr)
 		t.ctx.SetResult(types.TaskResultFailure)
 
 		return nil
@@ -195,7 +200,7 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	plotFilePath := "tx_pool_latency_hdr_plot.csv"
 
-	err = os.WriteFile(plotFilePath, []byte(plot), 0644)
+	err = os.WriteFile(plotFilePath, []byte(plot), 0o600)
 	if err != nil {
 		t.logger.Errorf("Failed to write HDR plot to file: %v", err)
 		t.ctx.SetResult(types.TaskResultFailure)

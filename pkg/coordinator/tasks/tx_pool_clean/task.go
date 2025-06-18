@@ -69,7 +69,7 @@ func (t *Task) LoadConfig() error {
 	return nil
 }
 
-func (t *Task) Execute(ctx context.Context) error {
+func (t *Task) Execute(_ context.Context) error {
 	clientPool := t.ctx.Scheduler.GetServices().ClientPool()
 	executionClients := clientPool.GetExecutionPool().GetReadyEndpoints(true)
 
