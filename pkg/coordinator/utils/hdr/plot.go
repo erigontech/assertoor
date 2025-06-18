@@ -15,6 +15,10 @@ func Plot(data []int64) (string, error) {
 
 	// Add the data to the histogram
 	for _, value := range data {
+		if value <= 0 {
+			continue
+		}
+
 		err := histogram.RecordValue(value)
 		if err != nil {
 			return "", err
