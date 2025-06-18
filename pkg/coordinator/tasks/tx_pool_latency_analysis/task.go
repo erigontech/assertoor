@@ -150,22 +150,22 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Send txes to other clients, for speeding up tx mining
-	t.logger.Infof("Sending %d transactions to other clients for mining", len(result.Txs))
+	// t.logger.Infof("Sending %d transactions to other clients for mining", len(result.Txs))
 
-	for _, tx := range result.Txs {
-		for _, otherClient := range executionClients {
-			if otherClient.GetName() == client.GetName() {
-				continue
-			}
+	// for _, tx := range result.Txs {
+	// 	for _, otherClient := range executionClients {
+	// 		if otherClient.GetName() == client.GetName() {
+	// 			continue
+	// 		}
 
-			if sendErr := otherClient.GetRPCClient().SendTransaction(ctx, tx); sendErr != nil {
-				t.logger.Errorf("Failed to send transaction to other client: %v", sendErr)
-				t.ctx.SetResult(types.TaskResultFailure)
+	// 		if sendErr := otherClient.GetRPCClient().SendTransaction(ctx, tx); sendErr != nil {
+	// 			t.logger.Errorf("Failed to send transaction to other client: %v", sendErr)
+	// 			t.ctx.SetResult(types.TaskResultFailure)
 
-				return sendErr
-			}
-		}
-	}
+	// 			return sendErr
+	// 		}
+	// 	}
+	// }
 
 	t.logger.Infof("Total transactions sent: %d", result.TotalTxs)
 
