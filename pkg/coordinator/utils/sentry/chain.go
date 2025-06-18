@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -153,7 +154,12 @@ func (c *Chain) Len() int {
 
 // ForkID gets the fork id of the chain.
 func (c *Chain) ForkID() forkid.ID {
-	return forkid.NewID(c.config, c.blocks[0], uint64(c.Len()), c.blocks[c.Len()-1].Time())
+	chainLen := c.Len()
+	if chainLen < 0 {
+		panic("negative chain length")
+	}
+
+	return forkid.NewID(c.config, c.blocks[0], uint64(chainLen), c.blocks[c.Len()-1].Time())
 }
 
 // TD calculates the total difficulty of the chain at the
@@ -224,6 +230,10 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 		return nil, errors.New("no block headers requested")
 	}
 
+	if req.Amount > math.MaxInt {
+		return nil, errors.New("requested amount too large")
+	}
+
 	var (
 		headers     = make([]*types.Header, req.Amount)
 		blockNumber uint64
@@ -241,7 +251,7 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 	}
 
 	if req.Reverse {
-		for i := 1; i < int(req.Amount); i++ {
+		for i := uint64(1); i < req.Amount; i++ {
 			blockNumber -= (1 - req.Skip)
 			headers[i] = c.blocks[blockNumber].Header()
 		}
@@ -249,7 +259,7 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 		return headers, nil
 	}
 
-	for i := 1; i < int(req.Amount); i++ {
+	for i := uint64(1); i < req.Amount; i++ {
 		blockNumber += (1 + req.Skip)
 		headers[i] = c.blocks[blockNumber].Header()
 	}
@@ -315,7 +325,12 @@ func blocksFromFile(chainfile string, gblock *types.Block) ([]*types.Block, erro
 			return nil, fmt.Errorf("at block index %d: %v", i, err)
 		}
 
-		if b.NumberU64() != uint64(i+1) {
+		expectedBlockNum := i + 1
+		if expectedBlockNum < 0 {
+			return nil, fmt.Errorf("block index out of range: %d", i)
+		}
+
+		if b.NumberU64() != uint64(expectedBlockNum) {
 			return nil, fmt.Errorf("block at index %d has wrong number %d", i, b.NumberU64())
 		}
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -132,6 +133,10 @@ func (c *Conn) ReadEth() (any, error) {
 		code -= baseProtoLen
 
 		var msg any
+
+		if code > math.MaxInt {
+			return nil, fmt.Errorf("message code too large: %d", code)
+		}
 
 		switch int(code) {
 		case eth.StatusMsg:
@@ -268,7 +273,10 @@ loop:
 			if err := rlp.DecodeBytes(data, &msg); err != nil {
 				return fmt.Errorf("error decoding status packet: %w", err)
 			}
-			if have, want := msg.ProtocolVersion, c.ourHighestProtoVersion; have != uint32(want) {
+			if c.ourHighestProtoVersion > math.MaxUint32 {
+				return fmt.Errorf("protocol version too large: %d", c.ourHighestProtoVersion)
+			}
+			if have, want := msg.ProtocolVersion, uint32(c.ourHighestProtoVersion); have != want {
 				return fmt.Errorf("wrong protocol version: have %v, want %v", have, want)
 			}
 			fmt.Println("status msg", msg)
@@ -298,6 +306,9 @@ loop:
 	}
 
 	if status == nil {
+		if c.negotiatedProtoVersion > math.MaxUint32 {
+			return fmt.Errorf("negotiated protocol version too large: %d", c.negotiatedProtoVersion)
+		}
 		// default status message
 		status = &eth.StatusPacket{
 			ProtocolVersion: uint32(c.negotiatedProtoVersion),

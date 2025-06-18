@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"time"
 
@@ -38,11 +39,17 @@ func BasicPing(remoteAddress, rpcAdmin string, logger logrus.FieldLogger) {
 	te := connectToP2p(remoteAddress, rpcAdmin, logger)
 	defer te.close()
 
+	expiration := time.Now().Add(20 * time.Second).Unix()
+	if expiration < 0 {
+		logger.Errorf("Invalid expiration time: %d", expiration)
+		return
+	}
+
 	pingHash := te.send(&v4wire.Ping{
 		Version:    4,
 		From:       te.localEndpoint(),
 		To:         te.remoteEndpoint(),
-		Expiration: uint64(time.Now().Add(20 * time.Second).Unix()),
+		Expiration: uint64(expiration),
 	})
 	if err := te.checkPingPong(pingHash); err != nil {
 		logger.Errorf("PingPong failed: %v", err)
@@ -53,6 +60,10 @@ func (te *sentryenv) localEndpoint() v4wire.Endpoint {
 	addr, ok := te.endpoint.LocalAddr().(*net.UDPAddr)
 	if !ok {
 		panic("expected UDP address")
+	}
+
+	if addr.Port < 0 || addr.Port > math.MaxUint16 {
+		panic(fmt.Sprintf("port out of range: %d", addr.Port))
 	}
 
 	return v4wire.Endpoint{
