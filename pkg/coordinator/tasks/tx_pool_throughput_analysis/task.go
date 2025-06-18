@@ -7,10 +7,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/noku-team/assertoor/pkg/coordinator/utils/tx_load_tool"
-
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noku-team/assertoor/pkg/coordinator/types"
+	txloadtool "github.com/noku-team/assertoor/pkg/coordinator/utils/tx_load_tool"
 	"github.com/noku-team/assertoor/pkg/coordinator/wallet"
 	"github.com/sirupsen/logrus"
 )
@@ -115,8 +114,8 @@ func (t *Task) Execute(ctx context.Context) error {
 	// Prepare to collect transaction latencies
 	var testDeadline = time.Now().Add(time.Duration(t.config.Duration_s+60*30) * time.Second)
 
-	load_target := tx_load_tool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
-	load := tx_load_tool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline, t.config.LogInterval)
+	load_target := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
+	load := txloadtool.NewLoad(load_target, t.config.TPS, t.config.Duration_s, testDeadline, t.config.LogInterval)
 
 	// Generate and sending transactions, waiting for their propagation
 	err = load.Execute()
@@ -150,7 +149,13 @@ func (t *Task) Execute(ctx context.Context) error {
 				continue
 			}
 
-			otherClient.GetRPCClient().SendTransaction(ctx, tx)
+			err := otherClient.GetRPCClient().SendTransaction(ctx, tx)
+			if err != nil {
+				t.logger.Errorf("Failed to send transaction to other client: %v", err)
+				t.ctx.SetResult(types.TaskResultFailure)
+
+				return err
+			}
 		}
 	}
 

@@ -48,7 +48,10 @@ type Conn struct {
 
 // Read reads a packet from the connection.
 func (c *Conn) Read() (uint64, []byte, error) {
-	c.SetReadDeadline(time.Now().Add(timeout))
+	err := c.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return 0, nil, err
+	}
 
 	code, data, _, err := c.Conn.Read()
 	if err != nil {
@@ -60,7 +63,10 @@ func (c *Conn) Read() (uint64, []byte, error) {
 
 // ReadMsg attempts to read a devp2p message with a specific code.
 func (c *Conn) ReadMsg(proto Proto, code uint64, msg any) error {
-	c.SetReadDeadline(time.Now().Add(timeout))
+	err := c.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return err
+	}
 
 	for {
 		got, data, err := c.Read()
@@ -76,7 +82,10 @@ func (c *Conn) ReadMsg(proto Proto, code uint64, msg any) error {
 
 // Write writes a eth packet to the connection.
 func (c *Conn) Write(proto Proto, code uint64, msg any) error {
-	c.SetWriteDeadline(time.Now().Add(timeout))
+	err := c.SetWriteDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return err
+	}
 
 	payload, err := rlp.EncodeToBytes(msg)
 	if err != nil {
@@ -92,7 +101,10 @@ var errDisc error = fmt.Errorf("disconnect")
 
 // ReadEth reads an Eth sub-protocol wire message.
 func (c *Conn) ReadEth() (any, error) {
-	c.SetReadDeadline(time.Now().Add(timeout))
+	err := c.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return nil, err
+	}
 
 	for {
 		code, data, _, err := c.Conn.Read()
@@ -383,9 +395,9 @@ func dialAs(remoteAddress string) (*Conn, error) {
 	return &conn, nil
 }
 
-// GetTcpConn dials the TCP wire eth connection to the given client retrieving the
+// GetTCPConn dials the TCP wire eth connection to the given client retrieving the
 // node information using the `admin_nodeInfo` method.
-func GetTcpConn(client *execution.Client) (*Conn, error) {
+func GetTCPConn(client *execution.Client) (*Conn, error) {
 	r, err := http.Post(client.GetEndpointConfig().URL, "application/json", strings.NewReader(
 		`{"jsonrpc":"2.0","method":"admin_nodeInfo","params":[],"id":1}`,
 	))

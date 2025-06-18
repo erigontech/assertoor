@@ -76,7 +76,10 @@ func (t *Task) Execute(ctx context.Context) error {
 	t.logger.Infof("Found %d execution clients", len(executionClients))
 
 	for _, client := range executionClients {
-		t.cleanRecursive(client)
+		err := t.cleanRecursive(client)
+		if err != nil {
+			return err
+		}
 	}
 
 	t.ctx.SetResult(types.TaskResultSuccess)

@@ -15,7 +15,10 @@ func HdrPlot(data []int64) (string, error) {
 
 	// Add the data to the histogram
 	for _, value := range data {
-		histogram.RecordValue(value)
+		err := histogram.RecordValue(value)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Create a buffer to capture the output of the PercentilesPrint function
