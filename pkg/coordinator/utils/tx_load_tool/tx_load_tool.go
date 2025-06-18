@@ -80,7 +80,7 @@ type Load struct {
 }
 
 // NewLoad creates a new Load instance
-func NewLoad(target *LoadTarget, tps int, durationS int, testDeadline time.Time, logInterval int) *Load {
+func NewLoad(target *LoadTarget, tps, durationS int, testDeadline time.Time, logInterval int) *Load {
 	return &Load{
 		target:       target,
 		TPS:          tps,

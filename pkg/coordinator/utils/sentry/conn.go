@@ -170,7 +170,7 @@ func (c *Conn) ReadEth() (any, error) {
 
 // peer performs both the protocol handshake and the status message
 // exchange with the node in order to peer with it.
-func (c *Conn) Peer(chainID *big.Int, genesisHash common.Hash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) Peer(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
 	if err := c.handshake(); err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
 	}
@@ -255,7 +255,7 @@ func (c *Conn) negotiateEthProtocol(caps []p2p.Cap) {
 }
 
 // statusExchange performs a `Status` message exchange with the given node.
-func (c *Conn) statusExchange(chainID *big.Int, genesisHash common.Hash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) statusExchange(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
 loop:
 	for {
 		code, data, err := c.Read()

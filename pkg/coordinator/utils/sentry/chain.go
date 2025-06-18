@@ -102,7 +102,8 @@ func (c *Chain) AccountsInHashOrder() []state.DumpAccount {
 	list := make([]state.DumpAccount, len(c.state))
 	i := 0
 
-	for addr, acc := range c.state {
+	for addr := range c.state {
+		acc := c.state[addr]
 		list[i] = acc
 		list[i].Address = &addr
 
@@ -127,8 +128,11 @@ func (c *Chain) CodeHashes() []common.Hash {
 	seen := make(map[common.Hash]struct{})
 	seen[types.EmptyCodeHash] = struct{}{}
 
-	for _, acc := range c.state {
+	for addr := range c.state {
+		acc := c.state[addr]
+
 		h := common.BytesToHash(acc.CodeHash)
+
 		if _, ok := seen[h]; ok {
 			continue
 		}
@@ -336,7 +340,9 @@ func readState(file string) (map[common.Address]state.DumpAccount, error) {
 
 	stateMap := make(map[common.Address]state.DumpAccount)
 
-	for key, acct := range dump.Accounts {
+	for key := range dump.Accounts {
+		acct := dump.Accounts[key]
+
 		var addr common.Address
 
 		if err := addr.UnmarshalText([]byte(key)); err != nil {
