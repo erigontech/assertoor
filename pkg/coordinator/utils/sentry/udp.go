@@ -35,7 +35,7 @@ const (
 )
 
 func BasicPing(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger) {
-	te := ConnectToP2p(remoteAddress, rpcAdmin, logger)
+	te := connectToP2p(remoteAddress, rpcAdmin, logger)
 	defer te.close()
 
 	pingHash := te.send(&v4wire.Ping{
@@ -214,7 +214,7 @@ func (te *sentryenv) checkPong(reply v4wire.Packet, pingHash []byte) error {
 // 	return ready, nil
 // }
 
-func ConnectToP2p(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger) *sentryenv {
+func connectToP2p(remoteAddress string, rpcAdmin string, logger logrus.FieldLogger) *sentryenv {
 	endpoint, err := net.ListenPacket("udp", "0.0.0.0:0")
 	if err != nil {
 		logger.Errorf("Failed to listen: %v", err)
