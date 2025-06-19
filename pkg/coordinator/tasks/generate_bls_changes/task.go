@@ -11,10 +11,10 @@ import (
 
 	v1 "github.com/attestantio/go-eth2-client/api/v1"
 	"github.com/attestantio/go-eth2-client/spec/capella"
-	hbls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/erigontech/assertoor/pkg/coordinator/clients/consensus"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
 	"github.com/erigontech/assertoor/pkg/coordinator/vars"
+	hbls "github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/protolambda/zrnt/eth2/beacon/common"
 	"github.com/protolambda/ztyp/tree"
 	"github.com/sirupsen/logrus"

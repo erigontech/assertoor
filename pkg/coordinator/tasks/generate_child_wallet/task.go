@@ -6,10 +6,10 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
 	"github.com/erigontech/assertoor/pkg/coordinator/vars"
 	"github.com/erigontech/assertoor/pkg/coordinator/wallet"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sirupsen/logrus"
 )
 

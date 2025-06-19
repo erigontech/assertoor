@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 

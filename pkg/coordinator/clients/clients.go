@@ -8,9 +8,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/erigontech/assertoor/pkg/coordinator/clients/consensus"
 	"github.com/erigontech/assertoor/pkg/coordinator/clients/execution"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
 )
 

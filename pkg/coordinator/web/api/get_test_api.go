@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
+	"github.com/gorilla/mux"
 )
 
 type GetTestResponse struct {

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorhill/cronexpr"
 	"github.com/erigontech/assertoor/pkg/coordinator/test"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
+	"github.com/gorhill/cronexpr"
 )
 
 type TestRunner struct {

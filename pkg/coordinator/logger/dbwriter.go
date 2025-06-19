@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/erigontech/assertoor/pkg/coordinator/db"
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )

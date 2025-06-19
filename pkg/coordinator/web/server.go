@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
 	coordinator_types "github.com/erigontech/assertoor/pkg/coordinator/types"
 	"github.com/erigontech/assertoor/pkg/coordinator/web/api"
 	"github.com/erigontech/assertoor/pkg/coordinator/web/handlers"
 	"github.com/erigontech/assertoor/pkg/coordinator/web/types"
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/urfave/negroni"

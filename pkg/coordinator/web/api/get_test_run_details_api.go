@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
+	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v3"
 )
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/erigontech/assertoor/pkg/coordinator/buildinfo"
 	"github.com/erigontech/assertoor/pkg/coordinator/clients"
 	"github.com/erigontech/assertoor/pkg/coordinator/clients/consensus"
@@ -23,6 +22,7 @@ import (
 	"github.com/erigontech/assertoor/pkg/coordinator/vars"
 	"github.com/erigontech/assertoor/pkg/coordinator/wallet"
 	"github.com/erigontech/assertoor/pkg/coordinator/web"
+	"github.com/jmoiron/sqlx"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip39"

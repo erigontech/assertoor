@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/attestantio/go-eth2-client/spec/phase0"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/erigontech/assertoor/pkg/coordinator/types"
 	"github.com/erigontech/assertoor/pkg/coordinator/vars"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sirupsen/logrus"
 )
 
