@@ -150,6 +150,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	}
 
 	// Send txes to other clients, for speeding up tx mining
+	// todo: fix sending to other clients
 	// t.logger.Infof("Sending %d transactions to other clients for mining", len(result.Txs))
 
 	// for _, tx := range result.Txs {
