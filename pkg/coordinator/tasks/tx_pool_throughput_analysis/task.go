@@ -125,7 +125,6 @@ func (t *Task) Execute(ctx context.Context) error {
 	// Create a new load target for the transaction propagation measurement
 	loadTarget := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
 
-	percentile := 0.95
 	singleMeasureDeadline := time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
 
 	// slice of pairs: sending tps, processed TPS values
@@ -137,7 +136,7 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
 		// measure the throughput with the current sendingTps
-		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, percentile, singleMeasureDeadline)
+		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, singleMeasureDeadline)
 		if err != nil {
 			t.logger.Errorf("Error during throughput measurement with sendingTps=%d, duration=%d: %v", sendingTps, t.config.DurationS, err)
 			t.ctx.SetResult(types.TaskResultFailure)
@@ -171,8 +170,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	return nil
 }
 
-func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps int, durationS int, percentile float64,
-	testDeadline time.Time) (int, error) {
+func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps, durationS int, testDeadline time.Time) (int, error) {
 	t.logger.Infof("Single measure of throughput, sending TPS: %d, duration: %d secs", sendingTps, durationS)
 
 	// Prepare to collect transaction latencies
