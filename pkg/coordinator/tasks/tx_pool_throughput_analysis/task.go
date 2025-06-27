@@ -25,6 +25,11 @@ var (
 	}
 )
 
+type ThroughoutMeasure struct {
+	LoadTPS      int `json:"load_tps"`
+	ProcessedTPS int `json:"processed_tps"`
+}
+
 type Task struct {
 	ctx     *types.TaskContext
 	options *types.TaskOptions
@@ -102,8 +107,8 @@ func (t *Task) Execute(ctx context.Context) error {
 	client := executionClients[n.Int64()]
 
 	t.logger.Infof("Measuring TxPool transaction propagation *throughput*")
-	t.logger.Infof("Targeting client: %s, TPS: %d, Duration: %d seconds",
-		client.GetName(), t.config.TPS, t.config.DurationS)
+	t.logger.Infof("Targeting client: %s, Starting TPS: %d, Ending TPS: %d, Increment TPS: %d, Duration: %d seconds",
+		client.GetName(), t.config.StartingTPS, t.config.EndingTPS, t.config.IncrementTPS, t.config.DurationS)
 
 	// Wait for the specified seconds before starting the task
 	if t.config.SecondsBeforeRunning > 0 {
@@ -117,11 +122,53 @@ func (t *Task) Execute(ctx context.Context) error {
 		}
 	}
 
-	// Prepare to collect transaction latencies
-	testDeadline := time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
-
+	// Create a new load target for the transaction propagation measurement
 	loadTarget := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
-	load := txloadtool.NewLoad(loadTarget, t.config.TPS, t.config.DurationS, testDeadline, t.config.LogInterval)
+
+	percentile := 0.95
+	singleMeasureDeadline := time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
+
+	// slice of pairs: sending tps, processed TPS values
+	var throughoutMeasures []ThroughoutMeasure
+
+	// Iterate over the TPS range and crate a plot processedTps vs sendingTps
+	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
+
+		// measure the throughput with the current sendingTps
+		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, percentile, singleMeasureDeadline)
+		if err != nil {
+			t.logger.Errorf("Error during throughput measurement with sendingTps=%d, duration=%d: %v", sendingTps, t.config.DurationS, err)
+			t.ctx.SetResult(types.TaskResultFailure)
+			return err
+		}
+
+		// add to throughoutMeasures
+		throughoutMeasures = append(throughoutMeasures, ThroughoutMeasure{
+			LoadTPS:      sendingTps,
+			ProcessedTPS: processedTps,
+		})
+	}
+
+	t.ctx.Outputs.SetVar("throughput_measures", throughoutMeasures)
+	// todo: log coordinated_omission_event_count and missed_p2p_event_count?
+
+	t.ctx.SetResult(types.TaskResultSuccess)
+
+	outputs := map[string]interface{}{
+		"throughput_measures": throughoutMeasures,
+	}
+
+	outputsJSON, _ := json.Marshal(outputs)
+	t.logger.Infof("outputs_json: %s", string(outputsJSON))
+
+	return nil
+}
+
+func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps int, durationS int, percentile float64,
+	testDeadline time.Time) (int, error) {
+
+	// Prepare to collect transaction latencies
+	load := txloadtool.NewLoad(loadTarget, sendingTps, durationS, testDeadline, t.config.LogInterval)
 
 	// Generate and sending transactions, waiting for their propagation
 	execErr := load.Execute()
@@ -129,7 +176,7 @@ func (t *Task) Execute(ctx context.Context) error {
 		t.logger.Errorf("Error during transaction load execution: %v", execErr)
 		t.ctx.SetResult(types.TaskResultFailure)
 
-		return execErr
+		return 0, execErr
 	}
 
 	// Collect the transactions and their latencies
@@ -138,12 +185,12 @@ func (t *Task) Execute(ctx context.Context) error {
 		t.logger.Errorf("Error measuring transaction propagation latencies: %v", measureErr)
 		t.ctx.SetResult(types.TaskResultFailure)
 
-		return measureErr
+		return 0, measureErr
 	}
 
 	// Check if the context was cancelled or other errors occurred
 	if result.Failed {
-		return fmt.Errorf("error measuring transaction propagation latencies: load failed")
+		return 0, fmt.Errorf("error measuring transaction propagation latencies: load failed")
 	}
 
 	// Send txes to other clients, for speeding up tx mining
@@ -169,30 +216,12 @@ func (t *Task) Execute(ctx context.Context) error {
 	// Calculate statistics
 	t.logger.Infof("Last measure delay since start time: %s", result.LastMeasureDelay)
 
-	processedTxPerSecond := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
+	processedTps_f := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
+	processedTps := int(processedTps_f) // round
 
 	t.logger.Infof("Processed %d transactions in %.2fs, mean throughput: %.2f tx/s",
-		result.TotalTxs, result.LastMeasureDelay.Seconds(), processedTxPerSecond)
+		result.TotalTxs, result.LastMeasureDelay.Seconds(), processedTps_f)
 	t.logger.Infof("Sent %d transactions in %.2fs", result.TotalTxs, result.LastMeasureDelay.Seconds())
 
-	t.ctx.Outputs.SetVar("mean_tps_throughput", processedTxPerSecond)
-	t.ctx.Outputs.SetVar("tx_count", result.TotalTxs)
-	t.ctx.Outputs.SetVar("duplicated_p2p_event_count", result.DuplicatedP2PEventCount)
-	t.ctx.Outputs.SetVar("missed_p2p_event_count", result.NotReceivedP2PEventCount)
-	t.ctx.Outputs.SetVar("coordinated_omission_event_count", result.CoordinatedOmissionEventCount)
-
-	t.ctx.SetResult(types.TaskResultSuccess)
-
-	outputs := map[string]interface{}{
-		"tx_count":                          result.TotalTxs,
-		"mean_tps_throughput":               processedTxPerSecond,
-		"duplicated_p2p_event_count":        result.DuplicatedP2PEventCount,
-		"coordinated_omission_events_count": result.CoordinatedOmissionEventCount,
-		"missed_p2p_event_count":            result.NotReceivedP2PEventCount,
-	}
-
-	outputsJSON, _ := json.Marshal(outputs)
-	t.logger.Infof("outputs_json: %s", string(outputsJSON))
-
-	return nil
+	return processedTps, nil
 }
