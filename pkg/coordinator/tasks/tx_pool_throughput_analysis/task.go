@@ -132,6 +132,9 @@ func (t *Task) Execute(ctx context.Context) error {
 	var throughoutMeasures []ThroughoutMeasure
 
 	// Iterate over the TPS range and crate a plot processedTps vs sendingTps
+	t.logger.Infof("Iterating over the TPS range, starting TPS: %d, ending TPS: %d, increment TPS: %d",
+		t.config.StartingTPS, t.config.EndingTPS, t.config.IncrementTPS)
+
 	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
 
 		// measure the throughput with the current sendingTps
@@ -149,10 +152,11 @@ func (t *Task) Execute(ctx context.Context) error {
 		})
 	}
 
-	t.ctx.Outputs.SetVar("throughput_measures", throughoutMeasures)
-	// todo: log coordinated_omission_event_count and missed_p2p_event_count?
+	t.logger.Infof("Finished measuring throughput, collected %d measures", len(throughoutMeasures))
 
-	t.ctx.SetResult(types.TaskResultSuccess)
+	// Set the throughput measures in the task context outputs
+	// from this plot we can compute the Maximum Sustainable Throughput or Capacity limit
+	t.ctx.Outputs.SetVar("throughput_measures", throughoutMeasures) // log coordinated_omission_event_count and missed_p2p_event_count?
 
 	outputs := map[string]interface{}{
 		"throughput_measures": throughoutMeasures,
@@ -161,11 +165,16 @@ func (t *Task) Execute(ctx context.Context) error {
 	outputsJSON, _ := json.Marshal(outputs)
 	t.logger.Infof("outputs_json: %s", string(outputsJSON))
 
+	// Set the task result to success
+	t.ctx.SetResult(types.TaskResultSuccess)
+
 	return nil
 }
 
 func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps int, durationS int, percentile float64,
 	testDeadline time.Time) (int, error) {
+
+	t.logger.Infof("Single measure of throughput, sending TPS: %d, duration: %d secs", sendingTps, durationS)
 
 	// Prepare to collect transaction latencies
 	load := txloadtool.NewLoad(loadTarget, sendingTps, durationS, testDeadline, t.config.LogInterval)
