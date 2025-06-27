@@ -136,12 +136,12 @@ func (t *Task) Execute(ctx context.Context) error {
 		t.config.StartingTPS, t.config.EndingTPS, t.config.IncrementTPS)
 
 	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
-
 		// measure the throughput with the current sendingTps
 		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, percentile, singleMeasureDeadline)
 		if err != nil {
 			t.logger.Errorf("Error during throughput measurement with sendingTps=%d, duration=%d: %v", sendingTps, t.config.DurationS, err)
 			t.ctx.SetResult(types.TaskResultFailure)
+
 			return err
 		}
 
@@ -173,7 +173,6 @@ func (t *Task) Execute(ctx context.Context) error {
 
 func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps int, durationS int, percentile float64,
 	testDeadline time.Time) (int, error) {
-
 	t.logger.Infof("Single measure of throughput, sending TPS: %d, duration: %d secs", sendingTps, durationS)
 
 	// Prepare to collect transaction latencies
@@ -225,11 +224,11 @@ func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps 
 	// Calculate statistics
 	t.logger.Infof("Last measure delay since start time: %s", result.LastMeasureDelay)
 
-	processedTps_f := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
-	processedTps := int(processedTps_f) // round
+	processedTpsF := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
+	processedTps := int(processedTpsF) // round
 
 	t.logger.Infof("Processed %d transactions in %.2fs, mean throughput: %.2f tx/s",
-		result.TotalTxs, result.LastMeasureDelay.Seconds(), processedTps_f)
+		result.TotalTxs, result.LastMeasureDelay.Seconds(), processedTpsF)
 	t.logger.Infof("Sent %d transactions in %.2fs", result.TotalTxs, result.LastMeasureDelay.Seconds())
 
 	return processedTps, nil
