@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -125,6 +126,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	// Create a new load target for the transaction propagation measurement
 	loadTarget := txloadtool.NewLoadTarget(ctx, t.ctx, t.logger, t.wallet, client)
 
+	percentile := 0.99 // 0.95 should be enough, change in the future if needed
 	singleMeasureDeadline := time.Now().Add(time.Duration(t.config.DurationS+60*30) * time.Second)
 
 	// slice of pairs: sending tps, processed TPS values
@@ -136,7 +138,7 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
 		// measure the throughput with the current sendingTps
-		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, singleMeasureDeadline)
+		processedTps, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, singleMeasureDeadline, percentile)
 		if err != nil {
 			t.logger.Errorf("Error during throughput measurement with sendingTps=%d, duration=%d: %v", sendingTps, t.config.DurationS, err)
 			t.ctx.SetResult(types.TaskResultFailure)
@@ -170,7 +172,8 @@ func (t *Task) Execute(ctx context.Context) error {
 	return nil
 }
 
-func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps, durationS int, testDeadline time.Time) (int, error) {
+func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps, durationS int,
+	testDeadline time.Time, percentile float64) (int, error) {
 	t.logger.Infof("Single measure of throughput, sending TPS: %d, duration: %d secs", sendingTps, durationS)
 
 	// Prepare to collect transaction latencies
@@ -219,7 +222,15 @@ func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps,
 
 	t.logger.Infof("Total transactions sent: %d", result.TotalTxs)
 
-	// Calculate statistics
+	if percentile != 0.99 {
+		// Calculate the percentile of latencies using result.LatenciesMus
+		// Not implemented yet
+		notImpl := errors.New("percentile selection not implemented, use 0.99")
+		return 0, notImpl
+	} else {
+		t.logger.Infof("Using 0.99 percentile for latency calculation")
+	}
+
 	t.logger.Infof("Last measure delay since start time: %s", result.LastMeasureDelay)
 
 	processedTpsF := float64(result.TotalTxs) / result.LastMeasureDelay.Seconds()
