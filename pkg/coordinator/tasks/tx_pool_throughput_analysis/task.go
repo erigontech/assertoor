@@ -227,9 +227,9 @@ func (t *Task) measureTpsWithLoad(loadTarget *txloadtool.LoadTarget, sendingTps,
 		// Not implemented yet
 		notImpl := errors.New("percentile selection not implemented, use 0.99")
 		return 0, notImpl
-	} else {
-		t.logger.Infof("Using 0.99 percentile for latency calculation")
 	}
+
+	t.logger.Infof("Using 0.99 percentile for latency calculation")
 
 	t.logger.Infof("Last measure delay since start time: %s", result.LastMeasureDelay)
 
