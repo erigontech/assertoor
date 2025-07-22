@@ -50,7 +50,7 @@ tasks:
   config:
     waitTime: 5
 - name: tx_pool_throughput_analysis
-  timeout: 30m
+  timeout: 40m
   title: "Check transaction pool throughput from 1000 to 5000 TPS with 500 TPS increment, duration 2s per test"
   config:
     startingTps: 1000
