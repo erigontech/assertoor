@@ -25,7 +25,9 @@ The `tx_pool_throughput_analysis` task evaluates the throughput of transaction p
   - `load_tps`: The sending TPS for this measurement
   - `processed_tps`: The actual processed TPS achieved
   - `not_received_p2p_event_count`: Count of transactions that didn't receive P2P events
+  - `not_received_p2p_event_rate`: Rate of transactions that didn't receive P2P events
   - `coordinated_omission_event_count`: Count of coordinated omission events
+  - `coordinated_omission_event_rate`: Rate of transactions with coordinated omission events
 
 - **`total_sent_tx`**:
   The total number of transactions sent across all TPS measurements.

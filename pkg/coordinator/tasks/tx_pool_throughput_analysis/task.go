@@ -27,10 +27,12 @@ var (
 )
 
 type ThroughoutMeasure struct {
-	LoadTPS                       int `json:"load_tps"`
-	ProcessedTPS                  int `json:"processed_tps"`
-	NotReceivedP2PEventCount      int `json:"not_received_p2p_event_count"`
-	CoordinatedOmissionEventCount int `json:"coordinated_omission_event_count"`
+	LoadTPS                       int     `json:"load_tps"`
+	ProcessedTPS                  int     `json:"processed_tps"`
+	NotReceivedP2PEventCount      int     `json:"not_received_p2p_event_count"`
+	NotReceivedP2PEventRate       float64 `json:"not_received_p2p_event_rate"`
+	CoordinatedOmissionEventCount int     `json:"coordinated_omission_event_count"`
+	CoordinatedOmissionEventRate  float64 `json:"coordinated_omission_event_rate"`
 }
 
 type Task struct {
@@ -152,15 +154,19 @@ func (t *Task) Execute(ctx context.Context) error {
 			return err
 		}
 
+		partialSentTx := sendingTps * t.config.DurationS
+
 		// add to throughoutMeasures
 		throughoutMeasures = append(throughoutMeasures, ThroughoutMeasure{
 			LoadTPS:                       sendingTps,
 			ProcessedTPS:                  processedTps,
 			NotReceivedP2PEventCount:      notReceivedP2PEventCount,
+			NotReceivedP2PEventRate:       float64(notReceivedP2PEventCount) / float64(partialSentTx),
 			CoordinatedOmissionEventCount: coordinatedOmissionEventCount,
+			CoordinatedOmissionEventRate:  float64(coordinatedOmissionEventCount) / float64(partialSentTx),
 		})
 
-		totalSentTx += sendingTps * t.config.DurationS
+		totalSentTx += partialSentTx
 		missedP2PEventCount += notReceivedP2PEventCount
 		totalCoordinatedOmissionEventCount += coordinatedOmissionEventCount
 	}
