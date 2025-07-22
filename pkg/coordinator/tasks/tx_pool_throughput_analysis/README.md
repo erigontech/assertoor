@@ -36,10 +36,10 @@ The `tx_pool_throughput_analysis` task evaluates the throughput of transaction p
 - **`coordinated_omission_event_count`**:
   The total count of coordinated omission events across all measurements.
 
-- **`missed_p2p_event_count_percentage`**:
+- **`missed_p2p_event_rate`**:
   The percentage of transactions that missed P2P events.
 
-- **`coordinated_omission_event_count_percentage`**:
+- **`coordinated_omission_event_rate`**:
   The percentage of transactions with coordinated omission events.
 
 - **`starting_tps`**:
