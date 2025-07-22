@@ -41,13 +41,13 @@ The `tx_pool_latency_analysis` task evaluates latency of transaction processing 
 - **`coordinated_omission_event_count`**:
   The number of coordinated omission events.
 
-- **`duplicated_p2p_event_count_percentage`**:
+- **`duplicated_p2p_event_rate`**:
   The percentage of duplicated P2P events.
 
-- **`missed_p2p_event_count_percentage`**:
+- **`missed_p2p_event_rate`**:
   The percentage of missed P2P events.
 
-- **`coordinated_omission_event_count_percentage`**:
+- **`coordinated_omission_event_rate`**:
   The percentage of coordinated omission events.
 
 ### Defaults
