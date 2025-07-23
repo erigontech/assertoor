@@ -140,7 +140,7 @@ func (c *Conn) ReadEth() (any, error) {
 
 		switch int(code) {
 		case eth.StatusMsg:
-			msg = new(eth.StatusPacket)
+			msg = new(eth.StatusPacket68)
 		case eth.GetBlockHeadersMsg:
 			msg = new(eth.GetBlockHeadersPacket)
 		case eth.BlockHeadersMsg:
@@ -175,7 +175,7 @@ func (c *Conn) ReadEth() (any, error) {
 
 // peer performs both the protocol handshake and the status message
 // exchange with the node in order to peer with it.
-func (c *Conn) Peer(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) Peer(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket68) error {
 	if err := c.handshake(); err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
 	}
@@ -260,7 +260,7 @@ func (c *Conn) negotiateEthProtocol(caps []p2p.Cap) {
 }
 
 // statusExchange performs a `Status` message exchange with the given node.
-func (c *Conn) statusExchange(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket) error {
+func (c *Conn) statusExchange(chainID *big.Int, genesisHash, headHash common.Hash, forkID forkid.ID, status *eth.StatusPacket68) error {
 loop:
 	for {
 		code, data, err := c.Read()
@@ -269,7 +269,7 @@ loop:
 		}
 		switch code {
 		case eth.StatusMsg + protoOffset(ethProto):
-			msg := new(eth.StatusPacket)
+			msg := new(eth.StatusPacket68)
 			if err := rlp.DecodeBytes(data, &msg); err != nil {
 				return fmt.Errorf("error decoding status packet: %w", err)
 			}
@@ -310,7 +310,7 @@ loop:
 			return fmt.Errorf("negotiated protocol version too large: %d", c.negotiatedProtoVersion)
 		}
 		// default status message
-		status = &eth.StatusPacket{
+		status = &eth.StatusPacket68{
 			ProtocolVersion: uint32(c.negotiatedProtoVersion),
 			NetworkID:       chainID.Uint64(),
 			TD:              new(big.Int).SetUint64(0),
