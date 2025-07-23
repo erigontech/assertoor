@@ -140,6 +140,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	t.logger.Infof("Iterating over the TPS range, starting TPS: %d, ending TPS: %d, increment TPS: %d",
 		t.config.StartingTPS, t.config.EndingTPS, t.config.IncrementTPS)
 
+	maxTps := 0
 	totalSentTx := 0
 	missedP2PEventCount := 0
 	totalCoordinatedOmissionEventCount := 0
@@ -166,6 +167,10 @@ func (t *Task) Execute(ctx context.Context) error {
 			CoordinatedOmissionEventRate:  float64(coordinatedOmissionEventCount) / float64(partialSentTx),
 		})
 
+		if processedTps > maxTps {
+			maxTps = processedTps
+		}
+
 		totalSentTx += partialSentTx
 		missedP2PEventCount += notReceivedP2PEventCount
 		totalCoordinatedOmissionEventCount += coordinatedOmissionEventCount
@@ -185,6 +190,7 @@ func (t *Task) Execute(ctx context.Context) error {
 	t.ctx.Outputs.SetVar("total_sent_tx", totalSentTx)
 	t.ctx.Outputs.SetVar("missed_p2p_event_rate", float64(missedP2PEventCount)/float64(totalSentTx))
 	t.ctx.Outputs.SetVar("coordinated_omission_event_rate", float64(totalCoordinatedOmissionEventCount)/float64(totalSentTx))
+	t.ctx.Outputs.SetVar("max_tps", maxTps)
 
 	outputs := map[string]interface{}{
 		"throughput_measures":              throughoutMeasures,
@@ -197,6 +203,7 @@ func (t *Task) Execute(ctx context.Context) error {
 		"total_sent_tx":                    totalSentTx,
 		"missed_p2p_event_rate":            float64(missedP2PEventCount) / float64(totalSentTx),
 		"coordinated_omission_event_rate":  float64(totalCoordinatedOmissionEventCount) / float64(totalSentTx),
+		"max_tps":                          maxTps,
 	}
 
 	outputsJSON, _ := json.Marshal(outputs)

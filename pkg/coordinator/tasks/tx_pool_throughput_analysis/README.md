@@ -29,6 +29,9 @@ The `tx_pool_throughput_analysis` task evaluates the throughput of transaction p
   - `coordinated_omission_event_count`: Count of coordinated omission events
   - `coordinated_omission_event_rate`: Rate of transactions with coordinated omission events
 
+- **`max_tps`**:
+  The maximum TPS achieved during the test.
+
 - **`total_sent_tx`**:
   The total number of transactions sent across all TPS measurements.
 
