@@ -147,6 +147,8 @@ func (t *Task) Execute(ctx context.Context) error {
 
 	for sendingTps := t.config.StartingTPS; sendingTps <= t.config.EndingTPS; sendingTps += t.config.IncrementTPS {
 		// measure the throughput with the current sendingTps
+		t.logger.Infof("Measuring throughput with sendingTps=%d, duration=%d", sendingTps, t.config.DurationS)
+
 		processedTps, notReceivedP2PEventCount, coordinatedOmissionEventCount, err := t.measureTpsWithLoad(loadTarget, sendingTps, t.config.DurationS, singleMeasureDeadline, percentile)
 		if err != nil {
 			t.logger.Errorf("Error during throughput measurement with sendingTps=%d, duration=%d: %v", sendingTps, t.config.DurationS, err)
