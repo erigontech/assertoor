@@ -3,7 +3,7 @@ package txpoolthroughputanalysis
 type Config struct {
 	PrivateKey string `yaml:"privateKey" json:"privateKey"`
 
-	StartingTPS          int `yaml:"tps" json:"tps"`
+	StartingTPS          int `yaml:"startingTps" json:"startingTps"`
 	EndingTPS            int `yaml:"endingTps" json:"endingTps"`
 	IncrementTPS         int `yaml:"incrementTps" json:"incrementTps"`
 	DurationS            int `yaml:"durationS" json:"durationS"`
